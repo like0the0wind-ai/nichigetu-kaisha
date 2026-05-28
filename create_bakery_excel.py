@@ -385,78 +385,87 @@ set_col_widths(ws6, {"A":14,"B":16,"C":10,"D":10,"E":12,"F":14,"G":14})
 # ════════════════════════════════════════════════════════════
 ws7 = wb.create_sheet("07_分析ダッシュボード")
 ws7.sheet_properties.tabColor = "4472C4"
+ws7.freeze_panes = "A3"
 
-section_title(ws7, 1, 10, "07  分析ダッシュボード　―　自動集計・可視化")
+section_title(ws7, 1, 12, "07  分析ダッシュボード　―　自動集計・可視化")
 ws7.row_dimensions[1].height = 26
 
-# ─── KPIブロック ─────────────────────────────────────
-kpi_labels = [
-    ("総売上合計", "=IFERROR(SUMIF('01_売上入力'!G3:G51,\">0\",'01_売上入力'!G3:G51),0)"),
-    ("総廃棄金額", "=IFERROR(SUM('04_廃棄入力'!E3:E51),0)"),
-    ("総人件費",   "=IFERROR(SUM('06_人件費'!G3:G51),0)"),
-    ("粗利合計",   "=IFERROR(B4-B5-B6,0)"),
-]
-
-ws7.merge_cells("A3:B3"); c = ws7["A3"]; c.value = "■ KPI サマリ"
+# ─── KPIブロック（左：A-C列）────────────────────────────
+ws7.merge_cells("A3:C3")
+c = ws7["A3"]; c.value = "■ KPI サマリ（累計）"
 c.font = Font(name=FONT_NAME, bold=True, size=12, color="1F3864")
 c.fill = PatternFill("solid", start_color="D9E1F2")
 
-for ri2, (label, formula) in enumerate(kpi_labels, 4):
+kpi_labels = [
+    ("総売上合計 (円)",   "=IFERROR(SUM('01_売上入力'!G3:G200),0)",            YEN_FMT),
+    ("総販売個数",        "=IFERROR(SUM('01_売上入力'!E3:E200),0)",            YEN_FMT2),
+    ("総廃棄金額 (円)",   "=IFERROR(SUM('04_廃棄入力'!E3:E200),0)",            YEN_FMT),
+    ("総人件費 (円)",     "=IFERROR(SUM('06_人件費'!G3:G200),0)",              YEN_FMT),
+    ("粗利合計 (円)",     "=IFERROR(B5-B7-B8,0)",                              YEN_FMT),
+    ("客単価 (円/人)",    "=IFERROR(B5/SUM(日次サマリ!B3:B200),\"-\")",        YEN_FMT2),
+]
+
+hdr_cell(ws7, 4, 1, "指標", bg="2F5597", size=10)
+hdr_cell(ws7, 4, 2, "値",   bg="2F5597", size=10)
+hdr_cell(ws7, 4, 3, "",     bg="2F5597", size=10)
+
+for ri2, (label, formula, fmt) in enumerate(kpi_labels, 5):
     lc = ws7.cell(ri2, 1, value=label)
     lc.font = Font(name=FONT_NAME, bold=True, size=10)
     lc.fill = PatternFill("solid", start_color="E9EFF7")
     thin = Side(style="thin", color="AAAAAA")
     lc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    lc.alignment = Alignment(vertical="center")
     vc = ws7.cell(ri2, 2, value=formula)
-    vc.font = Font(name=FONT_NAME, size=10, color="000000")
-    vc.number_format = YEN_FMT
+    vc.font = Font(name=FONT_NAME, size=11, color="000000", bold=True)
+    vc.number_format = fmt
     vc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    ws7.row_dimensions[ri2].height = 20
+    vc.alignment = Alignment(horizontal="right", vertical="center")
+    ws7.cell(ri2, 3).fill = PatternFill("solid", start_color="E9EFF7")
+    ws7.cell(ri2, 3).border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws7.row_dimensions[ri2].height = 22
 
-# ─── 商品別売上集計テーブル ───────────────────────────
-ws7.merge_cells("D3:G3"); c = ws7["D3"]; c.value = "■ 商品別売上ランキング"
+# ─── 商品別売上ランキング（右：E-I列）──────────────────
+ws7.merge_cells("E3:I3")
+c = ws7["E3"]; c.value = "■ 商品別売上ランキング"
 c.font = Font(name=FONT_NAME, bold=True, size=12, color="1F3864")
 c.fill = PatternFill("solid", start_color="D9E1F2")
 
-prod_hdr = ["商品名","売上合計 (円)","販売数","廃棄数"]
-for ci2, h in enumerate(prod_hdr, 4):
-    hdr_cell(ws7, 4, ci2, h, bg="2F5597")
+for ci2, h in enumerate(["商品名","売上 (円)","販売数","廃棄数","粗利 (円)"], 5):
+    hdr_cell(ws7, 4, ci2, h, bg="2F5597", size=10)
 
-product_names = [p[1] for p in PRODUCTS]
-for ri2, pname in enumerate(product_names, 5):
-    ws7.cell(ri2, 4, value=pname).font = Font(name=FONT_NAME, size=10)
+for ri2, pname in enumerate([p[1] for p in PRODUCTS], 5):
     thin = Side(style="thin", color="CCCCCC")
-    ws7.cell(ri2, 4).border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    nc = ws7.cell(ri2, 5, value=pname)
+    nc.font = Font(name=FONT_NAME, size=10)
+    nc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    fc_s = ws7.cell(ri2, 5, value=f"=IFERROR(SUMIF('01_売上入力'!D:D,D{ri2},'01_売上入力'!G:G),0)")
-    fc_s.font = Font(name=FONT_NAME, size=10, color="000000")
-    fc_s.number_format = YEN_FMT
-    fc_s.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    for ci2, (formula, fmt) in enumerate([
+        (f"=IFERROR(SUMIF('01_売上入力'!D:D,E{ri2},'01_売上入力'!G:G),0)", YEN_FMT),
+        (f"=IFERROR(SUMIF('01_売上入力'!D:D,E{ri2},'01_売上入力'!E:E),0)", YEN_FMT2),
+        (f"=IFERROR(SUMIF('04_廃棄入力'!B:B,E{ri2},'04_廃棄入力'!C:C),0)", YEN_FMT2),
+        (f"=IFERROR(F{ri2}-XLOOKUP(E{ri2},'02_商品マスタ'!B:B,'02_商品マスタ'!E:E,0)*H{ri2},0)", YEN_FMT),
+    ], 6):
+        fc = ws7.cell(ri2, ci2, value=formula)
+        fc.font = Font(name=FONT_NAME, size=10, color="000000")
+        fc.number_format = fmt
+        fc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws7.row_dimensions[ri2].height = 18
 
-    fc_c = ws7.cell(ri2, 6, value=f"=IFERROR(SUMIF('01_売上入力'!D:D,D{ri2},'01_売上入力'!E:E),0)")
-    fc_c.font = Font(name=FONT_NAME, size=10, color="000000")
-    fc_c.number_format = YEN_FMT2
-    fc_c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    fc_w = ws7.cell(ri2, 7, value=f"=IFERROR(SUMIF('04_廃棄入力'!B:B,D{ri2},'04_廃棄入力'!C:C),0)")
-    fc_w.font = Font(name=FONT_NAME, size=10, color="000000")
-    fc_w.number_format = YEN_FMT2
-    fc_w.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-# ─── 時間帯別売上テーブル ────────────────────────────
-row_t = 3 + len(PRODUCTS) + 3
-ws7.merge_cells(f"A{row_t}:C{row_t}"); c = ws7[f"A{row_t}"]
-c.value = "■ 時間帯別売上"
+# ─── 時間帯別売上テーブル（A-C列, row 13〜）─────────────
+row_t = 13
+ws7.merge_cells(f"A{row_t}:C{row_t}")
+c = ws7[f"A{row_t}"]; c.value = "■ 時間帯別売上"
 c.font = Font(name=FONT_NAME, bold=True, size=12, color="1F3864")
 c.fill = PatternFill("solid", start_color="D9E1F2")
 
 time_slots = ["8-9","9-10","10-11","11-12","12-13","13-14","14-15","15-16"]
 for ci2, h in enumerate(["時間帯","売上 (円)","販売数"], 1):
-    hdr_cell(ws7, row_t+1, ci2, h, bg="2F5597")
+    hdr_cell(ws7, row_t+1, ci2, h, bg="2F5597", size=10)
 
 for ri2, slot in enumerate(time_slots, row_t+2):
-    ws7.cell(ri2, 1, value=slot).font = Font(name=FONT_NAME, size=10)
     thin = Side(style="thin", color="CCCCCC")
+    ws7.cell(ri2, 1, value=slot).font = Font(name=FONT_NAME, size=10)
     ws7.cell(ri2, 1).border = Border(left=thin, right=thin, top=thin, bottom=thin)
     fc_s = ws7.cell(ri2, 2, value=f"=IFERROR(SUMIF('01_売上入力'!C:C,A{ri2},'01_売上入力'!G:G),0)")
     fc_s.font = Font(name=FONT_NAME, size=10, color="000000")
@@ -466,14 +475,15 @@ for ri2, slot in enumerate(time_slots, row_t+2):
     fc_c.font = Font(name=FONT_NAME, size=10, color="000000")
     fc_c.number_format = YEN_FMT2
     fc_c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws7.row_dimensions[ri2].height = 18
 
-# ─── グラフ：時間帯別売上（棒グラフ）───────────────────
+# ─── グラフ：時間帯別売上（棒グラフ）─────────────────
 chart_bar = BarChart()
 chart_bar.title = "時間帯別売上"
 chart_bar.style = 10
 chart_bar.y_axis.title = "売上 (円)"
 chart_bar.x_axis.title = "時間帯"
-chart_bar.width = 18
+chart_bar.width = 20
 chart_bar.height = 12
 
 data_ref = Reference(ws7, min_col=2, min_row=row_t+1,
@@ -483,26 +493,213 @@ cats_ref = Reference(ws7, min_col=1, min_row=row_t+2,
 chart_bar.add_data(data_ref, titles_from_data=True)
 chart_bar.set_categories(cats_ref)
 chart_bar.series[0].graphicalProperties.solidFill = "4472C4"
-ws7.add_chart(chart_bar, "E17")
+ws7.add_chart(chart_bar, "E13")
 
-# ─── グラフ：商品別売上（横棒グラフ）──────────────────
+# ─── グラフ：商品別売上（横棒グラフ）─────────────────
 chart_hbar = BarChart()
 chart_hbar.type = "bar"
 chart_hbar.title = "商品別売上"
 chart_hbar.style = 10
 chart_hbar.y_axis.title = "商品"
 chart_hbar.x_axis.title = "売上 (円)"
-chart_hbar.width = 18
+chart_hbar.width = 20
 chart_hbar.height = 14
 
-dr2 = Reference(ws7, min_col=5, min_row=4, max_row=4+len(PRODUCTS))
-cr2 = Reference(ws7, min_col=4, min_row=5, max_row=4+len(PRODUCTS))
+dr2 = Reference(ws7, min_col=6, min_row=4, max_row=4+len(PRODUCTS))
+cr2 = Reference(ws7, min_col=5, min_row=5, max_row=4+len(PRODUCTS))
 chart_hbar.add_data(dr2, titles_from_data=True)
 chart_hbar.set_categories(cr2)
 chart_hbar.series[0].graphicalProperties.solidFill = "70AD47"
-ws7.add_chart(chart_hbar, "A32")
+ws7.add_chart(chart_hbar, "E31")
 
-set_col_widths(ws7, {"A":16,"B":16,"C":12,"D":22,"E":16,"F":12,"G":12})
+# ════════════════════════════════════════════════════════════
+# 日次サマリ（別シート）
+# ════════════════════════════════════════════════════════════
+ws_day = wb.create_sheet("日次サマリ")
+ws_day.sheet_properties.tabColor = "00B0F0"
+ws_day.freeze_panes = "A3"
+
+section_title(ws_day, 1, 6, "日次サマリ　―　日別：売上・客数・客単価・販売個数")
+ws_day.row_dimensions[1].height = 24
+
+day_hdrs = ["日付", "客数（手入力）", "日売上 (円)", "販売個数", "客単価 (円/人)", "廃棄金額 (円)"]
+day_bgs  = ["1F497D","C55A11","2F5597","2F5597","375623","C00000"]
+for ci2, (h, bg) in enumerate(zip(day_hdrs, day_bgs), 1):
+    hdr_cell(ws_day, 2, ci2, h, bg=bg)
+
+# 入力ガイド（黄色背景で客数列を強調）
+guide = ws_day.cell(2, 2)
+guide.fill = PatternFill("solid", start_color="FF8C00")
+
+SAMPLE_DATES = [
+    datetime.date(2024, 6, 1),
+    datetime.date(2024, 6, 2),
+    datetime.date(2024, 6, 3),
+]
+SAMPLE_CUSTOMERS = [42, 38, 25]
+
+for ri2, (d, cust) in enumerate(zip(SAMPLE_DATES, SAMPLE_CUSTOMERS), 3):
+    thin = Side(style="thin", color="CCCCCC")
+    dc = ws_day.cell(ri2, 1, value=d)
+    dc.number_format = DATE_FMT
+    dc.font = Font(name=FONT_NAME, size=10)
+    dc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    kc = ws_day.cell(ri2, 2, value=cust)
+    kc.font = Font(name=FONT_NAME, size=10, color="0000FF", bold=True)
+    kc.number_format = YEN_FMT2
+    kc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    kc.fill = PatternFill("solid", start_color="FFFFC0")
+
+    for ci2, (formula, fmt) in enumerate([
+        (f"=IFERROR(SUMIFS('01_売上入力'!G:G,'01_売上入力'!A:A,A{ri2}),0)", YEN_FMT),
+        (f"=IFERROR(SUMIFS('01_売上入力'!E:E,'01_売上入力'!A:A,A{ri2}),0)", YEN_FMT2),
+        (f"=IFERROR(IF(B{ri2}=0,\"-\",C{ri2}/B{ri2}),\"-\")",               YEN_FMT2),
+        (f"=IFERROR(SUMIFS('04_廃棄入力'!E:E,'04_廃棄入力'!A:A,A{ri2}),0)", YEN_FMT),
+    ], 3):
+        fc = ws_day.cell(ri2, ci2, value=formula)
+        fc.font = Font(name=FONT_NAME, size=10, color="000000")
+        fc.number_format = fmt
+        fc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws_day.row_dimensions[ri2].height = ROW_H
+
+for ri2 in range(len(SAMPLE_DATES) + 3, 203):
+    thin = Side(style="thin", color="CCCCCC")
+    for ci2 in range(1, 7):
+        c = ws_day.cell(ri2, ci2)
+        if ci2 == 3:
+            c.value = f"=IFERROR(SUMIFS('01_売上入力'!G:G,'01_売上入力'!A:A,A{ri2}),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT
+        elif ci2 == 4:
+            c.value = f"=IFERROR(SUMIFS('01_売上入力'!E:E,'01_売上入力'!A:A,A{ri2}),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT2
+        elif ci2 == 5:
+            c.value = f"=IFERROR(IF(B{ri2}=\"\",\"\",IF(B{ri2}=0,\"-\",C{ri2}/B{ri2})),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT2
+        elif ci2 == 6:
+            c.value = f"=IFERROR(SUMIFS('04_廃棄入力'!E:E,'04_廃棄入力'!A:A,A{ri2}),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT
+        elif ci2 == 2:
+            c.fill = PatternFill("solid", start_color="FFFFC0")
+            c.font = Font(name=FONT_NAME, size=10, color="0000FF")
+        c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        c.fill = PatternFill("solid", start_color="F5FBFF" if ci2 != 2 else "FFFFC0")
+    ws_day.row_dimensions[ri2].height = ROW_H
+
+# 日次グラフ：日別売上（折れ線）
+chart_daily = LineChart()
+chart_daily.title = "日別売上推移"
+chart_daily.style = 10
+chart_daily.y_axis.title = "売上 (円)"
+chart_daily.x_axis.title = "日付"
+chart_daily.width = 22
+chart_daily.height = 13
+
+dr_d = Reference(ws_day, min_col=3, min_row=2, max_row=2+len(SAMPLE_DATES))
+cr_d = Reference(ws_day, min_col=1, min_row=3, max_row=2+len(SAMPLE_DATES))
+chart_daily.add_data(dr_d, titles_from_data=True)
+chart_daily.set_categories(cr_d)
+chart_daily.series[0].graphicalProperties.line.solidFill = "4472C4"
+ws_day.add_chart(chart_daily, "H3")
+
+set_col_widths(ws_day, {"A":14,"B":16,"C":16,"D":12,"E":16,"F":14})
+
+# ════════════════════════════════════════════════════════════
+# 月次サマリ（別シート）
+# ════════════════════════════════════════════════════════════
+ws_mon = wb.create_sheet("月次サマリ")
+ws_mon.sheet_properties.tabColor = "7030A0"
+ws_mon.freeze_panes = "A3"
+
+section_title(ws_mon, 1, 6, "月次サマリ　―　月別：月商・客数・客単価・廃棄率")
+ws_mon.row_dimensions[1].height = 24
+
+mon_hdrs = ["年月", "月商 (円)", "販売個数", "客数", "客単価 (円/人)", "廃棄金額 (円)"]
+mon_bgs  = ["1F497D","2F5597","2F5597","C55A11","375623","C00000"]
+for ci2, (h, bg) in enumerate(zip(mon_hdrs, mon_bgs), 1):
+    hdr_cell(ws_mon, 2, ci2, h, bg=bg)
+
+guide2 = ws_mon.cell(2, 4)
+guide2.fill = PatternFill("solid", start_color="FF8C00")
+
+SAMPLE_MONTHS = ["2024/06"]
+SAMPLE_MON_CUST = [105]
+
+for ri2, (ym, cust) in enumerate(zip(SAMPLE_MONTHS, SAMPLE_MON_CUST), 3):
+    thin = Side(style="thin", color="CCCCCC")
+    yc = ws_mon.cell(ri2, 1, value=ym)
+    yc.font = Font(name=FONT_NAME, size=10)
+    yc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    kc = ws_mon.cell(ri2, 4, value=cust)
+    kc.font = Font(name=FONT_NAME, size=10, color="0000FF", bold=True)
+    kc.number_format = YEN_FMT2
+    kc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    kc.fill = PatternFill("solid", start_color="FFFFC0")
+
+    for ci2, (formula, fmt) in enumerate([
+        (f"=IFERROR(SUMPRODUCT((TEXT('01_売上入力'!A3:A200,\"YYYY/MM\")=A{ri2})*('01_売上入力'!G3:G200)),0)", YEN_FMT),
+        (f"=IFERROR(SUMPRODUCT((TEXT('01_売上入力'!A3:A200,\"YYYY/MM\")=A{ri2})*('01_売上入力'!E3:E200)),0)", YEN_FMT2),
+        (f"=IFERROR(IF(D{ri2}=0,\"-\",B{ri2}/D{ri2}),\"-\")", YEN_FMT2),
+        (f"=IFERROR(SUMPRODUCT((TEXT('04_廃棄入力'!A3:A200,\"YYYY/MM\")=A{ri2})*('04_廃棄入力'!E3:E200)),0)", YEN_FMT),
+    ], 2):
+        fc = ws_mon.cell(ri2, ci2, value=formula)
+        fc.font = Font(name=FONT_NAME, size=10, color="000000")
+        fc.number_format = fmt
+        fc.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws_mon.row_dimensions[ri2].height = ROW_H
+
+for ri2 in range(len(SAMPLE_MONTHS) + 3, 50):
+    thin = Side(style="thin", color="CCCCCC")
+    for ci2 in range(1, 7):
+        c = ws_mon.cell(ri2, ci2)
+        if ci2 == 2:
+            c.value = f"=IFERROR(SUMPRODUCT((TEXT('01_売上入力'!A3:A200,\"YYYY/MM\")=A{ri2})*('01_売上入力'!G3:G200)),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT
+        elif ci2 == 3:
+            c.value = f"=IFERROR(SUMPRODUCT((TEXT('01_売上入力'!A3:A200,\"YYYY/MM\")=A{ri2})*('01_売上入力'!E3:E200)),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT2
+        elif ci2 == 5:
+            c.value = f"=IFERROR(IF(D{ri2}=\"\",\"\",IF(D{ri2}=0,\"-\",B{ri2}/D{ri2})),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT2
+        elif ci2 == 6:
+            c.value = f"=IFERROR(SUMPRODUCT((TEXT('04_廃棄入力'!A3:A200,\"YYYY/MM\")=A{ri2})*('04_廃棄入力'!E3:E200)),\"\")"
+            c.font = Font(name=FONT_NAME, size=10, color="000000")
+            c.number_format = YEN_FMT
+        elif ci2 == 4:
+            c.fill = PatternFill("solid", start_color="FFFFC0")
+            c.font = Font(name=FONT_NAME, size=10, color="0000FF")
+        c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        if ci2 != 4:
+            c.fill = PatternFill("solid", start_color="F5F0FF")
+    ws_mon.row_dimensions[ri2].height = ROW_H
+
+# 月次グラフ：月別売上（棒グラフ）
+chart_monthly = BarChart()
+chart_monthly.title = "月別売上"
+chart_monthly.style = 10
+chart_monthly.y_axis.title = "月商 (円)"
+chart_monthly.width = 22
+chart_monthly.height = 13
+
+dr_m = Reference(ws_mon, min_col=2, min_row=2, max_row=2+len(SAMPLE_MONTHS))
+cr_m = Reference(ws_mon, min_col=1, min_row=3, max_row=2+len(SAMPLE_MONTHS))
+chart_monthly.add_data(dr_m, titles_from_data=True)
+chart_monthly.set_categories(cr_m)
+chart_monthly.series[0].graphicalProperties.solidFill = "7030A0"
+ws_mon.add_chart(chart_monthly, "H3")
+
+set_col_widths(ws_mon, {"A":12,"B":16,"C":12,"D":12,"E":16,"F":14})
+
+# ws7 シートの列幅
+set_col_widths(ws7, {"A":16,"B":16,"C":8,"D":4,"E":22,"F":16,"G":12,"H":12,"I":14})
 
 
 # ════════════════════════════════════════════════════════════
@@ -563,6 +760,6 @@ set_col_widths(ws8, {"A":14,"B":40,"C":28,"D":28,"E":10})
 # ════════════════════════════════════════════════════════════
 # 保存
 # ════════════════════════════════════════════════════════════
-out_path = r"C:\Users\81908\OneDrive\デスクトップ\ニチゲツ会社\パン屋経営分析テンプレート.xlsx"
+out_path = r"C:\Users\81908\OneDrive\デスクトップ\ニチゲツ会社\パン屋経営分析テンプレートv2.xlsx"
 wb.save(out_path)
 print(f"保存完了: {out_path}")
