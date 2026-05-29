@@ -1,0 +1,22 @@
+{
+  "name": "パン屋ニチゲツ 打刻",
+  "short_name": "ニチゲツ打刻",
+  "description": "パン屋ニチゲツの出退勤管理アプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5ede0",
+  "theme_color": "#c87941",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

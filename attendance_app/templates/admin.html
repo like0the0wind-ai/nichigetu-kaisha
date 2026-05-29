@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理者画面 | ニチゲツ</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#c87941">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem;
+    }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .logout { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+
+    /* 期間フィルター */
+    .period-form {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid #c8a878; border-radius: 12px;
+      padding: 1rem; margin-bottom: 1.25rem;
+      display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+    }
+    .period-form label { font-size: .85rem; color: #7a4010; white-space: nowrap; }
+    input[type=date] {
+      padding: .45rem .7rem; background: #faf5ee;
+      border: 1px solid #c8a878; border-radius: 8px;
+      color: #3a2010; font-size: .9rem;
+    }
+    .sep { color: #9a6a3a; }
+    .btn { padding: .5rem 1.1rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: .9rem; font-family: inherit; white-space: nowrap; }
+    .period-label {
+      font-size: .8rem; color: #9a6a3a;
+      width: 100%; margin-top: -.2rem;
+    }
+
+    /* スタッフ集計 */
+    .summary-cards {
+      display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
+      border-radius: 12px; padding: .85rem 1.1rem;
+      box-shadow: 0 2px 8px rgba(120,70,20,.1);
+      min-width: 130px;
+    }
+    .card-name { font-size: .85rem; color: #7a4010; margin-bottom: .3rem; }
+    .card-total { font-size: 1.2rem; color: #c87941; font-weight: bold; }
+    .card-days  { font-size: .8rem; color: #9a6a3a; }
+
+    /* 明細テーブル */
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .75rem;
+         letter-spacing: .1em; font-weight: normal; }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: rgba(255,255,255,0.75); border-radius: 12px;
+      overflow: hidden; font-size: .85rem;
+      box-shadow: 0 2px 12px rgba(120,70,20,.1);
+    }
+    th {
+      background: #c8a878; padding: .65rem .8rem;
+      text-align: left; color: #3a2010;
+      font-weight: normal; letter-spacing: .05em;
+    }
+    td { padding: .6rem .8rem; border-top: 1px solid #e8d5b5; }
+    tr:hover td { background: #f5ede0; }
+    .badge-working {
+      background: #4a7a4a; color: #fff;
+      padding: .15rem .55rem; border-radius: 20px; font-size: .75rem;
+    }
+    .del-btn {
+      background: none; border: 1px solid #c09080;
+      color: #a06050; border-radius: 6px; padding: .2rem .55rem;
+      cursor: pointer; font-size: .75rem;
+    }
+    .del-btn:hover { background: #f5e0d8; }
+    .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
+    .back { display: inline-block; margin-top: 1.25rem;
+            color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>管理者画面 — ニチゲツ</h1>
+    <a class="logout" href="/admin/logout">ログアウト</a>
+  </header>
+
+  <!-- 期間フィルター -->
+  <form class="period-form" method="get">
+    <label>期間</label>
+    <input type="date" name="from" value="{{ date_from }}">
+    <span class="sep">〜</span>
+    <input type="date" name="to" value="{{ date_to }}">
+    <button class="btn" type="submit">表示</button>
+    <div class="period-label">給与期間: {{ period_label }}</div>
+  </form>
+
+  <!-- スタッフ別集計 -->
+  {% if staff_summary %}
+  <div class="summary-cards">
+    {% for s in staff_summary %}
+    <div class="card">
+      <div class="card-name">{{ s.name }}</div>
+      <div class="card-total">{{ s.total }}</div>
+      <div class="card-days">{{ s.days }}日出勤</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- 明細 -->
+  <h2>出退勤明細</h2>
+  {% if records %}
+  <table>
+    <thead>
+      <tr>
+        <th>日付</th><th>名前</th><th>出勤</th><th>退勤</th><th>実働</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td>{{ r.date }}</td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.clock_in }}</td>
+        <td>{{ r.clock_out }}</td>
+        <td>
+          {% if r.clock_out == '—' %}
+            <span class="badge-working">出勤中</span>
+          {% else %}
+            {{ r.work }}
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/admin/delete/{{ r.id }}"
+                onsubmit="return confirm('削除しますか？')">
+            <button class="del-btn" type="submit">削除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">この期間の記録はありません</div>
+  {% endif %}
+
+  <a class="back" href="/">← 打刻画面へ</a>
+</body>
+</html>
