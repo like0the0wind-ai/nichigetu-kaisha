@@ -160,6 +160,44 @@ def admin_delete(rec_id):
     execute("DELETE FROM records WHERE id=?", (rec_id,))
     return redirect(request.referrer or url_for("admin"))
 
+@app.route("/admin/edit/<int:rec_id>", methods=["GET", "POST"])
+def admin_edit(rec_id):
+    if not session.get("admin"):
+        return redirect(url_for("admin_login"))
+
+    rows = query("SELECT * FROM records WHERE id=?", (rec_id,))
+    if not rows:
+        return redirect(url_for("admin"))
+    rec = rows[0]
+
+    error = None
+    if request.method == "POST":
+        name      = request.form["name"].strip()
+        clock_in  = request.form["clock_in"].strip()
+        clock_out = request.form["clock_out"].strip()
+        try:
+            # バリデーション
+            ci = datetime.strptime(clock_in, "%Y-%m-%dT%H:%M")
+            co = datetime.strptime(clock_out, "%Y-%m-%dT%H:%M") if clock_out else None
+            if co and co < ci:
+                raise ValueError("退勤が出勤より早い")
+            execute(
+                "UPDATE records SET name=?, clock_in=?, clock_out=? WHERE id=?",
+                (name,
+                 ci.strftime("%Y-%m-%d %H:%M:%S"),
+                 co.strftime("%Y-%m-%d %H:%M:%S") if co else None,
+                 rec_id)
+            )
+            return redirect(url_for("admin"))
+        except ValueError as e:
+            error = f"入力エラー: {e}"
+
+    # datetime-local 形式に変換
+    ci_val = rec["clock_in"][:16].replace(" ", "T") if rec["clock_in"] else ""
+    co_val = rec["clock_out"][:16].replace(" ", "T") if rec["clock_out"] else ""
+
+    return render_template("edit.html", rec=rec, ci_val=ci_val, co_val=co_val, error=error)
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     error = None

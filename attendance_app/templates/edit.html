@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>打刻修正 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem 1rem;
+    }
+    h1 { font-size: 1.2rem; color: #7a4010; letter-spacing: .2em; margin-bottom: 1.5rem; }
+    .card {
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #c8a878; border-radius: 16px;
+      padding: 2rem; width: min(420px, 95vw);
+      box-shadow: 0 4px 20px rgba(120,70,20,.12);
+    }
+    .field { margin-bottom: 1.2rem; }
+    label { display: block; font-size: .85rem; color: #7a4010; margin-bottom: .4rem; }
+    input[type=text], input[type=datetime-local] {
+      width: 100%; padding: .7rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: 1rem;
+      font-family: inherit;
+    }
+    .btns { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    .btn-save {
+      flex: 1; padding: .85rem; background: #c87941; color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem;
+      cursor: pointer; font-family: inherit; letter-spacing: .05em;
+    }
+    .btn-cancel {
+      flex: 1; padding: .85rem; background: #e8d5b5; color: #7a4010;
+      border: none; border-radius: 10px; font-size: 1rem;
+      cursor: pointer; font-family: inherit;
+      text-decoration: none; text-align: center; line-height: 1.4;
+    }
+    .error {
+      background: #fde8e0; border: 1px solid #e8a090;
+      border-radius: 8px; padding: .75rem 1rem;
+      color: #c03020; font-size: .9rem; margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>打刻修正</h1>
+  <div class="card">
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <div class="field">
+        <label>名前</label>
+        <input type="text" name="name" value="{{ rec.name }}" required>
+      </div>
+      <div class="field">
+        <label>出勤時刻</label>
+        <input type="datetime-local" name="clock_in" value="{{ ci_val }}" required>
+      </div>
+      <div class="field">
+        <label>退勤時刻（未退勤の場合は空欄）</label>
+        <input type="datetime-local" name="clock_out" value="{{ co_val }}">
+      </div>
+      <div class="btns">
+        <button class="btn-save" type="submit">保存</button>
+        <a class="btn-cancel" href="/admin">キャンセル</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

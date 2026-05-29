@@ -78,6 +78,12 @@
       background: #4a7a4a; color: #fff;
       padding: .15rem .55rem; border-radius: 20px; font-size: .75rem;
     }
+    .edit-btn {
+      background: none; border: 1px solid #c8a878;
+      color: #7a4010; border-radius: 6px; padding: .2rem .55rem;
+      cursor: pointer; font-size: .75rem; text-decoration: none;
+    }
+    .edit-btn:hover { background: #f5ede0; }
     .del-btn {
       background: none; border: 1px solid #c09080;
       color: #a06050; border-radius: 6px; padding: .2rem .55rem;
@@ -124,7 +130,7 @@
   <table>
     <thead>
       <tr>
-        <th>日付</th><th>名前</th><th>出勤</th><th>退勤</th><th>実働</th><th></th>
+        <th>日付</th><th>名前</th><th>出勤</th><th>退勤</th><th>実働</th><th colspan="2"></th>
       </tr>
     </thead>
     <tbody>
@@ -140,6 +146,9 @@
           {% else %}
             {{ r.work }}
           {% endif %}
+        </td>
+        <td>
+          <a href="/admin/edit/{{ r.id }}" class="edit-btn">修正</a>
         </td>
         <td>
           <form method="post" action="/admin/delete/{{ r.id }}"
