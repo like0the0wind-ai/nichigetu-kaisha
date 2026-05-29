@@ -1,7 +1,12 @@
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from dateutil.relativedelta import relativedelta
 from flask import Flask, render_template, request, redirect, url_for, session
+
+JST = timezone(timedelta(hours=9))
+
+def now_jst():
+    return datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "nichigetsu-secret")
@@ -87,7 +92,7 @@ def index():
                 msg = f"{name} さんはすでに出勤中です"
             else:
                 execute("INSERT INTO records (name, clock_in) VALUES (?, ?)",
-                        (name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        (name, now_jst()))
                 msg = f"{name} さんの出勤を記録しました ✓"
         elif action == "clock_out":
             rows = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
@@ -95,7 +100,7 @@ def index():
                 msg = f"{name} さんの出勤記録が見つかりません"
             else:
                 execute("UPDATE records SET clock_out=? WHERE id=?",
-                        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), rows[0]["id"]))
+                        (now_jst(), rows[0]["id"]))
                 msg = f"{name} さんの退勤を記録しました ✓"
     return render_template("index.html", msg=msg)
 
