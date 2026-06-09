@@ -54,6 +54,21 @@ def init_db():
                 break_min INTEGER DEFAULT 0
             )
         """)
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS breaks (
+                id         SERIAL PRIMARY KEY,
+                record_id  INTEGER NOT NULL,
+                break_start TEXT NOT NULL,
+                break_end   TEXT
+            )
+        """ if DATABASE_URL else """
+            CREATE TABLE IF NOT EXISTS breaks (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id   INTEGER NOT NULL,
+                break_start TEXT NOT NULL,
+                break_end   TEXT
+            )
+        """)
         conn.commit()
 
 def query(sql, params=()):
@@ -99,9 +114,47 @@ def index():
             if not rows:
                 msg = f"{name} さんの出勤記録が見つかりません"
             else:
-                execute("UPDATE records SET clock_out=? WHERE id=?",
-                        (now_jst(), rows[0]["id"]))
+                rec_id = rows[0]["id"]
+                # 休憩中なら自動終了
+                br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec_id,))
+                if br:
+                    execute("UPDATE breaks SET break_end=? WHERE id=?", (now_jst(), br[0]["id"]))
+                # break_min を集計して更新
+                brs = query("SELECT break_start, break_end FROM breaks WHERE record_id=?", (rec_id,))
+                total_break = 0
+                for b in brs:
+                    if b["break_end"]:
+                        s = datetime.strptime(b["break_start"], "%Y-%m-%d %H:%M:%S")
+                        e = datetime.strptime(b["break_end"],   "%Y-%m-%d %H:%M:%S")
+                        total_break += int((e - s).total_seconds() // 60)
+                execute("UPDATE records SET clock_out=?, break_min=? WHERE id=?",
+                        (now_jst(), total_break, rec_id))
                 msg = f"{name} さんの退勤を記録しました ✓"
+        elif action == "break_start":
+            rows = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
+            if not rows:
+                msg = f"{name} さんの出勤記録が見つかりません"
+            else:
+                rec_id = rows[0]["id"]
+                br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec_id,))
+                if br:
+                    msg = f"{name} さんはすでに休憩中です"
+                else:
+                    execute("INSERT INTO breaks (record_id, break_start) VALUES (?, ?)",
+                            (rec_id, now_jst()))
+                    msg = f"{name} さんの休憩開始を記録しました ✓"
+        elif action == "break_end":
+            rows = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
+            if not rows:
+                msg = f"{name} さんの出勤記録が見つかりません"
+            else:
+                rec_id = rows[0]["id"]
+                br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec_id,))
+                if not br:
+                    msg = f"{name} さんは休憩中ではありません"
+                else:
+                    execute("UPDATE breaks SET break_end=? WHERE id=?", (now_jst(), br[0]["id"]))
+                    msg = f"{name} さんの休憩終了を記録しました ✓"
     return render_template("index.html", msg=msg)
 
 # ── 給与期間 ──────────────────────────────────────────────────────

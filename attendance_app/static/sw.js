@@ -1,4 +1,4 @@
-const CACHE = "nichigetsu-v1";
+const CACHE = "nichigetsu-v2";
 const OFFLINE = ["/", "/static/manifest.json"];
 
 self.addEventListener("install", e => {

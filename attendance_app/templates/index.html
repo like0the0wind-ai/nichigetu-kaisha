@@ -46,8 +46,10 @@
       transition: opacity .15s;
     }
     button:hover { opacity: .85; }
-    .btn-in  { background: #c87941; color: #fff; }
-    .btn-out { background: #4a7a4a; color: #fff; }
+    .btn-in    { background: #c87941; color: #fff; }
+    .btn-out   { background: #4a7a4a; color: #fff; }
+    .btn-break { background: #7a6a4a; color: #fff; }
+    .btns-break { display: flex; gap: .75rem; margin-top: .75rem; }
     .msg {
       margin-top: 1.2rem; padding: .75rem 1rem;
       background: #f0e5d0; border-radius: 8px;
@@ -68,6 +70,10 @@
       <div class="btns">
         <button class="btn-in"  name="action" value="clock_in">出勤</button>
         <button class="btn-out" name="action" value="clock_out">退勤</button>
+      </div>
+      <div class="btns-break">
+        <button class="btn-break" name="action" value="break_start">休憩開始</button>
+        <button class="btn-break" name="action" value="break_end">休憩終了</button>
       </div>
       {% if msg %}
       <div class="msg">{{ msg }}</div>
