@@ -57,6 +57,7 @@
     .card-name { font-size: .85rem; color: #7a4010; margin-bottom: .3rem; }
     .card-total { font-size: 1.2rem; color: #c87941; font-weight: bold; }
     .card-days  { font-size: .8rem; color: #9a6a3a; }
+    .card-break { font-size: .8rem; color: #7a6a4a; margin-top: .1rem; }
 
     /* 明細テーブル */
     h2 { font-size: .95rem; color: #7a4010; margin-bottom: .75rem;
@@ -119,6 +120,7 @@
       <div class="card-name">{{ s.name }}</div>
       <div class="card-total">{{ s.total }}</div>
       <div class="card-days">{{ s.days }}日出勤</div>
+      <div class="card-break">休憩 {{ s.break }}</div>
     </div>
     {% endfor %}
   </div>
@@ -130,7 +132,7 @@
   <table>
     <thead>
       <tr>
-        <th>日付</th><th>名前</th><th>出勤</th><th>退勤</th><th>実働</th><th colspan="2"></th>
+        <th>日付</th><th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th colspan="2"></th>
       </tr>
     </thead>
     <tbody>
@@ -140,6 +142,7 @@
         <td>{{ r.name }}</td>
         <td>{{ r.clock_in }}</td>
         <td>{{ r.clock_out }}</td>
+        <td>{{ r.break }}</td>
         <td>
           {% if r.clock_out == '—' %}
             <span class="badge-working">出勤中</span>

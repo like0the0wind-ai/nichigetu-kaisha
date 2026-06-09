@@ -188,21 +188,25 @@ def admin():
     for r in rows:
         ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
         co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S") if r["clock_out"] else None
-        work_min = int((co - ci).total_seconds() // 60) - (r["break_min"] or 0) if co else None
+        break_min = r["break_min"] or 0
+        work_min = int((co - ci).total_seconds() // 60) - break_min if co else None
         records.append({
             "id": r["id"], "name": r["name"],
             "date": ci.strftime("%m/%d"),
             "clock_in": ci.strftime("%H:%M"),
             "clock_out": co.strftime("%H:%M") if co else "—",
             "work": f"{work_min // 60}h{work_min % 60:02d}m" if work_min is not None else "出勤中",
+            "break": f"{break_min // 60}h{break_min % 60:02d}m" if break_min > 0 else "—",
         })
         if r["name"] not in staff:
-            staff[r["name"]] = {"days": 0, "total_min": 0}
+            staff[r["name"]] = {"days": 0, "total_min": 0, "break_min": 0}
         staff[r["name"]]["days"] += 1
         staff[r["name"]]["total_min"] += work_min or 0
+        staff[r["name"]]["break_min"] += break_min
 
     staff_summary = [{"name": n, "days": s["days"],
-        "total": f"{s['total_min']//60}h{s['total_min']%60:02d}m"}
+        "total": f"{s['total_min']//60}h{s['total_min']%60:02d}m",
+        "break": f"{s['break_min']//60}h{s['break_min']%60:02d}m" if s["break_min"] > 0 else "—"}
         for n, s in sorted(staff.items())]
 
     return render_template("admin.html",
