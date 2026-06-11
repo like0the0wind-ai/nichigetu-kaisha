@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from datetime import datetime, date, timezone, timedelta
 from dateutil.relativedelta import relativedelta
 from flask import Flask, render_template, request, redirect, url_for, session
@@ -12,7 +13,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "nichigetsu-secret")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "saito")
 
-DATABASE_URL = os.environ.get("DATABASE_URL")  # Renderが自動設定
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # ── DB ────────────────────────────────────────────────────────────
 
@@ -31,7 +32,6 @@ def get_db():
         return conn
 
 def ph():
-    """プレースホルダー: PostgreSQL は %s、SQLite は ?"""
     return "%s" if DATABASE_URL else "?"
 
 def init_db():
@@ -56,8 +56,8 @@ def init_db():
         """)
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS breaks (
-                id         SERIAL PRIMARY KEY,
-                record_id  INTEGER NOT NULL,
+                id          SERIAL PRIMARY KEY,
+                record_id   INTEGER NOT NULL,
                 break_start TEXT NOT NULL,
                 break_end   TEXT
             )
@@ -67,6 +67,17 @@ def init_db():
                 record_id   INTEGER NOT NULL,
                 break_start TEXT NOT NULL,
                 break_end   TEXT
+            )
+        """)
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS staff (
+                id   SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            )
+        """ if DATABASE_URL else """
+            CREATE TABLE IF NOT EXISTS staff (
+                id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
             )
         """)
         conn.commit()
@@ -91,6 +102,10 @@ def execute(sql, params=()):
         cur.execute(sql, params)
         conn.commit()
 
+def round15(minutes):
+    """15分単位で切り捨て"""
+    return (minutes // 15) * 15
+
 # ── 従業員側 ──────────────────────────────────────────────────────
 
 @app.route("/", methods=["GET", "POST"])
@@ -100,14 +115,13 @@ def index():
         action = request.form["action"]
         name   = request.form["name"].strip()
         if not name:
-            msg = "名前を入力してください"
+            msg = "名前を選択してください"
         elif action == "clock_in":
             rows = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
             if rows:
                 msg = f"{name} さんはすでに出勤中です"
             else:
-                execute("INSERT INTO records (name, clock_in) VALUES (?, ?)",
-                        (name, now_jst()))
+                execute("INSERT INTO records (name, clock_in) VALUES (?, ?)", (name, now_jst()))
                 msg = f"{name} さんの出勤を記録しました ✓"
         elif action == "clock_out":
             rows = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
@@ -115,11 +129,9 @@ def index():
                 msg = f"{name} さんの出勤記録が見つかりません"
             else:
                 rec_id = rows[0]["id"]
-                # 休憩中なら自動終了
                 br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec_id,))
                 if br:
                     execute("UPDATE breaks SET break_end=? WHERE id=?", (now_jst(), br[0]["id"]))
-                # break_min を集計して更新
                 brs = query("SELECT break_start, break_end FROM breaks WHERE record_id=?", (rec_id,))
                 total_break = 0
                 for b in brs:
@@ -155,7 +167,20 @@ def index():
                 else:
                     execute("UPDATE breaks SET break_end=? WHERE id=?", (now_jst(), br[0]["id"]))
                     msg = f"{name} さんの休憩終了を記録しました ✓"
-    return render_template("index.html", msg=msg)
+
+    staff_rows = query("SELECT name FROM staff ORDER BY name")
+    staff_status = []
+    for s in staff_rows:
+        n = s["name"]
+        rec = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (n,))
+        if rec:
+            br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec[0]["id"],))
+            status = "break" if br else "in"
+        else:
+            status = "out"
+        staff_status.append({"name": n, "status": status})
+
+    return render_template("index.html", staff_status=staff_status, msg=msg)
 
 # ── 給与期間 ──────────────────────────────────────────────────────
 
@@ -189,7 +214,8 @@ def admin():
         ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
         co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S") if r["clock_out"] else None
         break_min = r["break_min"] or 0
-        work_min = int((co - ci).total_seconds() // 60) - break_min if co else None
+        work_min_raw = int((co - ci).total_seconds() // 60) - break_min if co else None
+        work_min = round15(work_min_raw) if work_min_raw is not None else None
         records.append({
             "id": r["id"], "name": r["name"],
             "date": ci.strftime("%m/%d"),
@@ -197,6 +223,7 @@ def admin():
             "clock_out": co.strftime("%H:%M") if co else "—",
             "work": f"{work_min // 60}h{work_min % 60:02d}m" if work_min is not None else "出勤中",
             "break": f"{break_min // 60}h{break_min % 60:02d}m" if break_min > 0 else "—",
+            "work_min": work_min or 0,
         })
         if r["name"] not in staff:
             staff[r["name"]] = {"days": 0, "total_min": 0, "break_min": 0}
@@ -209,11 +236,40 @@ def admin():
         "break": f"{s['break_min']//60}h{s['break_min']%60:02d}m" if s["break_min"] > 0 else "—"}
         for n, s in sorted(staff.items())]
 
+    # 日別グループ
+    days_dict = defaultdict(lambda: {"records": [], "total_min": 0})
+    for r in records:
+        days_dict[r["date"]]["records"].append(r)
+        days_dict[r["date"]]["total_min"] += r["work_min"]
+    days = [
+        {"date": d, "records": info["records"],
+         "total": f"{info['total_min']//60}h{info['total_min']%60:02d}m"}
+        for d, info in sorted(days_dict.items())
+    ]
+
     return render_template("admin.html",
-        records=records, staff_summary=staff_summary,
+        staff_summary=staff_summary, days=days,
         date_from=date_from, date_to=date_to,
         period_label=pay_period_label(
             date.fromisoformat(date_from), date.fromisoformat(date_to)))
+
+@app.route("/admin/staff", methods=["GET", "POST"])
+def admin_staff():
+    if not session.get("admin"):
+        return redirect(url_for("admin_login"))
+    error = None
+    if request.method == "POST":
+        action = request.form.get("action")
+        name = request.form.get("name", "").strip()
+        if action == "add" and name:
+            try:
+                execute("INSERT INTO staff (name) VALUES (?)", (name,))
+            except Exception:
+                error = f"「{name}」はすでに登録されています"
+        elif action == "delete" and name:
+            execute("DELETE FROM staff WHERE name=?", (name,))
+    staff = query("SELECT * FROM staff ORDER BY name")
+    return render_template("staff.html", staff=staff, error=error)
 
 @app.route("/admin/delete/<int:rec_id>", methods=["POST"])
 def admin_delete(rec_id):
@@ -238,7 +294,6 @@ def admin_edit(rec_id):
         clock_in  = request.form["clock_in"].strip()
         clock_out = request.form["clock_out"].strip()
         try:
-            # バリデーション
             ci = datetime.strptime(clock_in, "%Y-%m-%dT%H:%M")
             co = datetime.strptime(clock_out, "%Y-%m-%dT%H:%M") if clock_out else None
             if co and co < ci:
@@ -254,7 +309,6 @@ def admin_edit(rec_id):
         except ValueError as e:
             error = f"入力エラー: {e}"
 
-    # datetime-local 形式に変換
     ci_val = rec["clock_in"][:16].replace(" ", "T") if rec["clock_in"] else ""
     co_val = rec["clock_out"][:16].replace(" ", "T") if rec["clock_out"] else ""
 
