@@ -236,7 +236,7 @@ def admin():
             co_min = floor15(co.hour * 60 + co.minute)
             total_min = max(0, co_min - ci_min - break_min)
             std_min = min(total_min, STANDARD_HOURS * 60)
-            over_min = max(0, total_min - STANDARD_HOURS * 60)
+            over_min = floor15(max(0, total_min - STANDARD_HOURS * 60))
         else:
             std_min = None
             over_min = None
