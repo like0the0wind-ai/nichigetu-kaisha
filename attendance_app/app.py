@@ -102,9 +102,24 @@ def execute(sql, params=()):
         cur.execute(sql, params)
         conn.commit()
 
-def round15(minutes):
-    """15分単位で切り捨て"""
+STANDARD_HOURS = 6  # 基本労働時間
+
+def ceil15(minutes):
+    """15分単位で切り上げ（出勤用）"""
+    import math
+    return math.ceil(minutes / 15) * 15
+
+def floor15(minutes):
+    """15分単位で切り捨て（退勤用）"""
     return (minutes // 15) * 15
+
+def fmt_time(minutes):
+    """時間表示（m省略）: 6h / 6h15 / 0h30"""
+    h = minutes // 60
+    m = minutes % 60
+    if m == 0:
+        return f"{h}h"
+    return f"{h}h{m:02d}"
 
 # ── 従業員側 ──────────────────────────────────────────────────────
 
@@ -214,36 +229,53 @@ def admin():
         ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
         co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S") if r["clock_out"] else None
         break_min = r["break_min"] or 0
-        work_min_raw = int((co - ci).total_seconds() // 60) - break_min if co else None
-        work_min = round15(work_min_raw) if work_min_raw is not None else None
+
+        if co:
+            # 出勤: 15分切り上げ、退勤: 15分切り下げ
+            ci_min = ceil15(ci.hour * 60 + ci.minute)
+            co_min = floor15(co.hour * 60 + co.minute)
+            total_min = max(0, co_min - ci_min - break_min)
+            std_min = min(total_min, STANDARD_HOURS * 60)
+            over_min = max(0, total_min - STANDARD_HOURS * 60)
+        else:
+            std_min = None
+            over_min = None
+            total_min = 0
+
         records.append({
             "id": r["id"], "name": r["name"],
             "date": ci.strftime("%m/%d"),
             "clock_in": ci.strftime("%H:%M"),
             "clock_out": co.strftime("%H:%M") if co else "—",
-            "work": f"{work_min // 60}h{work_min % 60:02d}m" if work_min is not None else "出勤中",
-            "break": f"{break_min // 60}h{break_min % 60:02d}m" if break_min > 0 else "—",
-            "work_min": work_min or 0,
+            "work": fmt_time(std_min) if std_min is not None else "出勤中",
+            "overtime": fmt_time(over_min) if over_min is not None and over_min > 0 else "—",
+            "break": fmt_time(break_min) if break_min > 0 else "—",
+            "work_min": std_min or 0,
+            "over_min": over_min or 0,
         })
         if r["name"] not in staff:
-            staff[r["name"]] = {"days": 0, "total_min": 0, "break_min": 0}
+            staff[r["name"]] = {"days": 0, "total_min": 0, "over_min": 0, "break_min": 0}
         staff[r["name"]]["days"] += 1
-        staff[r["name"]]["total_min"] += work_min or 0
+        staff[r["name"]]["total_min"] += std_min or 0
+        staff[r["name"]]["over_min"] += over_min or 0
         staff[r["name"]]["break_min"] += break_min
 
     staff_summary = [{"name": n, "days": s["days"],
-        "total": f"{s['total_min']//60}h{s['total_min']%60:02d}m",
-        "break": f"{s['break_min']//60}h{s['break_min']%60:02d}m" if s["break_min"] > 0 else "—"}
+        "total": fmt_time(s["total_min"]),
+        "overtime": fmt_time(s["over_min"]) if s["over_min"] > 0 else "—",
+        "break": fmt_time(s["break_min"]) if s["break_min"] > 0 else "—"}
         for n, s in sorted(staff.items())]
 
     # 日別グループ
-    days_dict = defaultdict(lambda: {"records": [], "total_min": 0})
+    days_dict = defaultdict(lambda: {"records": [], "total_min": 0, "over_min": 0})
     for r in records:
         days_dict[r["date"]]["records"].append(r)
         days_dict[r["date"]]["total_min"] += r["work_min"]
+        days_dict[r["date"]]["over_min"] += r["over_min"]
     days = [
         {"date": d, "records": info["records"],
-         "total": f"{info['total_min']//60}h{info['total_min']%60:02d}m"}
+         "total": fmt_time(info["total_min"]),
+         "overtime": fmt_time(info["over_min"]) if info["over_min"] > 0 else ""}
         for d, info in sorted(days_dict.items())
     ]
 

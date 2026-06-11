@@ -50,6 +50,7 @@
     .card-total { font-size: 1.2rem; color: #c87941; font-weight: bold; }
     .card-days  { font-size: .8rem; color: #9a6a3a; }
     .card-break { font-size: .8rem; color: #7a6a4a; margin-top: .1rem; }
+    .card-over  { font-size: .8rem; color: #a05030; margin-top: .1rem; font-weight: bold; }
 
     /* 日別セクション */
     .day-section { margin-bottom: 1.5rem; }
@@ -122,6 +123,7 @@
       <div class="card-total">{{ s.total }}</div>
       <div class="card-days">{{ s.days }}日出勤</div>
       <div class="card-break">休憩 {{ s.break }}</div>
+      {% if s.overtime != '—' %}<div class="card-over">残業 {{ s.overtime }}</div>{% endif %}
     </div>
     {% endfor %}
   </div>
@@ -134,12 +136,12 @@
     <div class="day-section">
       <div class="day-header">
         <span>{{ day.date }}</span>
-        <span class="day-total">合計 {{ day.total }}</span>
+        <span class="day-total">合計 {{ day.total }}{% if day.overtime %} / 残業 {{ day.overtime }}{% endif %}</span>
       </div>
       <table>
         <thead>
           <tr>
-            <th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th colspan="2"></th>
+            <th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>残業</th><th colspan="2"></th>
           </tr>
         </thead>
         <tbody>
@@ -156,6 +158,7 @@
                 {{ r.work }}
               {% endif %}
             </td>
+            <td>{{ r.overtime }}</td>
             <td><a href="/admin/edit/{{ r.id }}" class="edit-btn">修正</a></td>
             <td>
               <form method="post" action="/admin/delete/{{ r.id }}"
