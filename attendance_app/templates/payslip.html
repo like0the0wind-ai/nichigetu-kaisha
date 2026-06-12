@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>給与明細 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+    .card {
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1);
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .9rem; font-weight: normal; letter-spacing: .1em; }
+
+    .filter-form { display: flex; flex-wrap: wrap; gap: .65rem; align-items: flex-end; }
+    .filter-form > div { display: flex; flex-direction: column; gap: .2rem; }
+    .filter-form label { font-size: .82rem; color: #7a4010; }
+    select, input[type=date] {
+      padding: .6rem .9rem; background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    .btn { padding: .65rem 1.2rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; font-family: inherit; }
+    .btn-excel { padding: .65rem 1.2rem; background: #3a7a3a; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; font-family: inherit;
+      text-decoration: none; display: inline-block; }
+    .btn-excel:hover { opacity: .85; }
+
+    .summary-row {
+      display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem;
+      padding: 1rem; background: #faf5ee; border-radius: 10px;
+    }
+    .sum-item .label { font-size: .78rem; color: #9a6a3a; }
+    .sum-item .value { font-size: 1.3rem; font-weight: bold; color: #c87941; }
+    .sum-item .value.over { color: #a05030; }
+
+    table {
+      width: 100%; border-collapse: collapse; font-size: .85rem;
+      background: rgba(255,255,255,0.75); border-radius: 12px; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(120,70,20,.1);
+    }
+    th { background: #c8a878; padding: .65rem .8rem; text-align: left;
+         color: #3a2010; font-weight: normal; letter-spacing: .05em; }
+    td { padding: .6rem .8rem; border-top: 1px solid #e8d5b5; }
+    tr:hover td { background: #f5ede0; }
+    .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
+    .period-label { font-size: .8rem; color: #9a6a3a; margin-top: .3rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📄 給与明細</h1>
+    <a class="back" href="/admin">← 管理者画面</a>
+  </header>
+
+  <div class="card">
+    <h2>スタッフと期間を選択</h2>
+    <form method="get" class="filter-form">
+      <div>
+        <label>スタッフ</label>
+        <select name="name" required>
+          <option value="">— 選択 —</option>
+          {% for s in staff_rows %}
+          <option value="{{ s.name }}" {% if s.name == target %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>開始日</label>
+        <input type="date" name="from" value="{{ date_from }}">
+      </div>
+      <div>
+        <label>終了日</label>
+        <input type="date" name="to" value="{{ date_to }}">
+      </div>
+      <button class="btn" type="submit">表示</button>
+      {% if target and results %}
+      <a class="btn-excel"
+         href="/admin/payslip?name={{ target }}&from={{ date_from }}&to={{ date_to }}&dl=1">
+        📥 Excel ダウンロード
+      </a>
+      {% endif %}
+    </form>
+    {% if target %}<div class="period-label">期間: {{ period_label }}</div>{% endif %}
+  </div>
+
+  {% if target %}
+  <div class="card">
+    {% if results %}
+    <div class="summary-row">
+      <div class="sum-item">
+        <div class="label">スタッフ名</div>
+        <div class="value" style="font-size:1.1rem;color:#3a2010">{{ target }}</div>
+      </div>
+      <div class="sum-item">
+        <div class="label">出勤日数</div>
+        <div class="value">{{ days }} 日</div>
+      </div>
+      <div class="sum-item">
+        <div class="label">総勤務時間</div>
+        <div class="value">{{ total_work }}</div>
+      </div>
+      <div class="sum-item">
+        <div class="label">残業時間</div>
+        <div class="value over">{{ total_over }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>勤務時間</th><th>残業</th></tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr>
+          <td>{{ r.date }}</td>
+          <td>{{ r.clock_in }}</td>
+          <td>{{ r.clock_out }}</td>
+          <td>{{ r.break }}</td>
+          <td>{{ r.work }}</td>
+          <td>{{ r.overtime }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ target }} さんのこの期間の記録はありません</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</body>
+</html>
