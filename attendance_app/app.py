@@ -371,7 +371,12 @@ def admin_logout():
     session.clear()
     return redirect(url_for("index"))
 
-init_db()
+try:
+    init_db()
+    print("DB初期化成功")
+except Exception as e:
+    print(f"DB初期化エラー: {e}")
+    import traceback; traceback.print_exc()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
