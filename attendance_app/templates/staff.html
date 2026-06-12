@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>スタッフ管理 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back-link { color: #9a6a3a; font-size: .85rem; text-decoration: none; }
+
+    .add-form {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid #c8a878; border-radius: 12px;
+      padding: 1.25rem; margin-bottom: 1.5rem;
+      display: flex; gap: .75rem; align-items: center;
+    }
+    input[type=text] {
+      flex: 1; padding: .75rem 1rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010;
+      font-size: 1rem; font-family: inherit;
+    }
+    input[type=text]::placeholder { color: #b8987a; }
+    .btn-add {
+      padding: .75rem 1.25rem;
+      background: #c87941; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 1rem; font-family: inherit;
+      cursor: pointer; white-space: nowrap;
+    }
+    .btn-add:hover { opacity: .85; }
+
+    .error {
+      background: #f5e0d8; border: 1px solid #c09080;
+      border-radius: 8px; padding: .75rem 1rem;
+      margin-bottom: 1rem; font-size: .9rem; color: #a06050;
+    }
+
+    .staff-list {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid #c8a878; border-radius: 12px;
+      overflow: hidden;
+    }
+    .staff-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .9rem 1.1rem; border-top: 1px solid #e8d5b5;
+      font-size: 1rem;
+    }
+    .staff-item:first-child { border-top: none; }
+    .del-btn {
+      background: none; border: 1px solid #c09080;
+      color: #a06050; border-radius: 6px; padding: .3rem .75rem;
+      cursor: pointer; font-size: .8rem; font-family: inherit;
+    }
+    .del-btn:hover { background: #f5e0d8; }
+    .empty { text-align: center; color: #9a7a5a; padding: 2rem; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>スタッフ管理</h1>
+    <a class="back-link" href="/admin">← 管理者画面へ</a>
+  </header>
+
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <form class="add-form" method="post">
+    <input type="hidden" name="action" value="add">
+    <input type="text" name="name" placeholder="スタッフ名を入力" required autofocus>
+    <button class="btn-add" type="submit">追加</button>
+  </form>
+
+  <div class="staff-list">
+    {% if staff %}
+      {% for s in staff %}
+      <div class="staff-item">
+        <span>{{ s.name }}</span>
+        <form method="post" onsubmit="return confirm('「{{ s.name }}」を削除しますか？')">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="name" value="{{ s.name }}">
+          <button class="del-btn" type="submit">削除</button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">スタッフが登録されていません</div>
+    {% endif %}
+  </div>
+</body>
+</html>
