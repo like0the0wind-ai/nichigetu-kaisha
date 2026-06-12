@@ -625,6 +625,96 @@ def admin_products():
 
 # ── ログイン ───────────────────────────────────────────────────────
 
+@app.route("/admin/instagram", methods=["GET", "POST"])
+@admin_required
+def admin_instagram():
+    results = []
+    error = None
+    if request.method == "POST":
+        files = request.files.getlist("media")
+        files = [f for f in files if f and f.filename]
+        if not files:
+            error = "ファイルを選択してください"
+        else:
+            try:
+                import anthropic, base64, mimetypes
+                client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+                RULES = (
+                    "あなたはパン屋「ニチゲツ」のInstagram運用担当です。"
+                    "投稿ルール: 製造風景40%・商品紹介30%・裏側20%・お知らせ10%。"
+                    "キャプションは1〜3行、感情を書く、お客様目線。禁止: 長文・自慢・専門用語。"
+                    "最重要: 「美味しそう」より「今日行かないと無くなりそう」を感じさせる。"
+                    "キャプション末尾には必ず「プレオープン中のため売切れ次第終了となります。」を入れる。"
+                )
+
+                image_data_list = []
+                for f in files:
+                    raw = f.read()
+                    mime = f.content_type or mimetypes.guess_type(f.filename)[0] or "image/jpeg"
+                    b64 = base64.b64encode(raw).decode()
+                    image_data_list.append({
+                        "filename": f.filename,
+                        "mime": mime,
+                        "b64": b64,
+                        "is_video": mime.startswith("video/"),
+                    })
+
+                # 各ファイルを個別分析
+                for img in image_data_list:
+                    if img["is_video"]:
+                        prompt = (
+                            f"{RULES}\n\n"
+                            f"動画ファイル「{img['filename']}」についてInstagram Reelの編集提案をしてください。\n"
+                            "以下のJSON形式で回答:\n"
+                            '{"type":"製造風景|商品紹介|裏側|お知らせ", "caption":"キャプション文(改行は\\n)", "edit":"編集提案(カット順・テキスト・BGM)", "order_reason":"投稿順の理由"}'
+                        )
+                        msg = client.messages.create(
+                            model="claude-opus-4-8",
+                            max_tokens=800,
+                            messages=[{"role":"user","content":prompt}]
+                        )
+                    else:
+                        prompt = (
+                            f"{RULES}\n\n"
+                            "この画像を見てInstagramキャプションと投稿タイプを提案してください。\n"
+                            "以下のJSON形式のみで回答:\n"
+                            '{"type":"製造風景|商品紹介|裏側|お知らせ", "caption":"キャプション文(改行は\\n)", "edit":"投稿のポイント・加工提案", "order_reason":"投稿順の理由"}'
+                        )
+                        msg = client.messages.create(
+                            model="claude-opus-4-8",
+                            max_tokens=800,
+                            messages=[{"role":"user","content":[
+                                {"type":"image","source":{"type":"base64","media_type":img["mime"],"data":img["b64"]}},
+                                {"type":"text","text":prompt}
+                            ]}]
+                        )
+
+                    import json, re
+                    raw_text = msg.content[0].text
+                    m = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                    if m:
+                        parsed = json.loads(m.group())
+                    else:
+                        parsed = {"type":"不明","caption":raw_text,"edit":"","order_reason":""}
+
+                    results.append({
+                        "filename": img["filename"],
+                        "is_video": img["is_video"],
+                        "b64": img["b64"] if not img["is_video"] else "",
+                        "mime": img["mime"],
+                        **parsed
+                    })
+
+                # 投稿順を再整理（製造→商品→裏側→お知らせ）
+                TYPE_ORDER = {"製造風景":0,"商品紹介":1,"裏側":2,"お知らせ":3}
+                results.sort(key=lambda r: TYPE_ORDER.get(r.get("type","お知らせ"), 9))
+
+            except Exception as e:
+                error = f"分析エラー: {e}"
+
+    return render_template("instagram.html", results=results, error=error)
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     error = None
