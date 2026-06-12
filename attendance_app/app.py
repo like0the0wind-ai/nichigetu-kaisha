@@ -637,8 +637,10 @@ def admin_instagram():
             error = "ファイルを選択してください"
         else:
             try:
-                import anthropic, base64, mimetypes
-                client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+                import google.generativeai as genai
+                import base64, mimetypes, json, re
+                genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
+                model = genai.GenerativeModel("gemini-1.5-flash")
 
                 RULES = (
                     "あなたはパン屋「ニチゲツ」のInstagram運用担当です。"
@@ -656,42 +658,32 @@ def admin_instagram():
                     image_data_list.append({
                         "filename": f.filename,
                         "mime": mime,
+                        "raw": raw,
                         "b64": b64,
                         "is_video": mime.startswith("video/"),
                     })
 
-                # 各ファイルを個別分析
                 for img in image_data_list:
                     if img["is_video"]:
                         prompt = (
                             f"{RULES}\n\n"
                             f"動画ファイル「{img['filename']}」についてInstagram Reelの編集提案をしてください。\n"
-                            "以下のJSON形式で回答:\n"
-                            '{"type":"製造風景|商品紹介|裏側|お知らせ", "caption":"キャプション文(改行は\\n)", "edit":"編集提案(カット順・テキスト・BGM)", "order_reason":"投稿順の理由"}'
+                            "以下のJSON形式のみで回答（```json不要）:\n"
+                            '{"type":"製造風景", "caption":"キャプション文(改行は\\n)", "edit":"編集提案(カット順・テキスト・BGM)", "order_reason":"投稿順の理由"}'
                         )
-                        msg = client.messages.create(
-                            model="claude-opus-4-8",
-                            max_tokens=800,
-                            messages=[{"role":"user","content":prompt}]
-                        )
+                        resp = model.generate_content(prompt)
                     else:
                         prompt = (
                             f"{RULES}\n\n"
                             "この画像を見てInstagramキャプションと投稿タイプを提案してください。\n"
-                            "以下のJSON形式のみで回答:\n"
-                            '{"type":"製造風景|商品紹介|裏側|お知らせ", "caption":"キャプション文(改行は\\n)", "edit":"投稿のポイント・加工提案", "order_reason":"投稿順の理由"}'
+                            "typeは必ず「製造風景」「商品紹介」「裏側」「お知らせ」のいずれか。\n"
+                            "以下のJSON形式のみで回答（```json不要）:\n"
+                            '{"type":"商品紹介", "caption":"キャプション文(改行は\\n)", "edit":"投稿のポイント・加工提案", "order_reason":"投稿順の理由"}'
                         )
-                        msg = client.messages.create(
-                            model="claude-opus-4-8",
-                            max_tokens=800,
-                            messages=[{"role":"user","content":[
-                                {"type":"image","source":{"type":"base64","media_type":img["mime"],"data":img["b64"]}},
-                                {"type":"text","text":prompt}
-                            ]}]
-                        )
+                        image_part = {"mime_type": img["mime"], "data": img["raw"]}
+                        resp = model.generate_content([prompt, image_part])
 
-                    import json, re
-                    raw_text = msg.content[0].text
+                    raw_text = resp.text
                     m = re.search(r'\{.*\}', raw_text, re.DOTALL)
                     if m:
                         parsed = json.loads(m.group())

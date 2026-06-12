@@ -3,4 +3,4 @@ python-dateutil
 gunicorn
 psycopg2-binary
 openpyxl
-anthropic
+google-generativeai
