@@ -20,9 +20,18 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 def get_db():
     if DATABASE_URL:
         import psycopg2, psycopg2.extras
+        from urllib.parse import urlparse
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        url = url.split("?")[0]  # pgbouncer=true等のパラメータを除去
-        conn = psycopg2.connect(url, sslmode="require")
+        url = url.split("?")[0]
+        p = urlparse(url)
+        conn = psycopg2.connect(
+            host=p.hostname,
+            port=p.port or 6543,
+            user=p.username,
+            password=p.password,
+            dbname=p.path.lstrip("/"),
+            sslmode="require"
+        )
         conn.cursor_factory = psycopg2.extras.RealDictCursor
         return conn
     else:
