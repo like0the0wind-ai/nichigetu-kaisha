@@ -27,7 +27,7 @@ def get_db():
         print(f"DB接続: host={p.hostname} port={p.port} user={p.username} db={p.path.lstrip('/')}")
         conn = psycopg2.connect(
             host=p.hostname,
-            port=p.port or 6543,
+            port=p.port or 5432,
             user=p.username,
             password=p.password,
             dbname=p.path.lstrip("/"),
