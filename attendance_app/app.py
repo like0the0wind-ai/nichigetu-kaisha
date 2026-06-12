@@ -30,8 +30,7 @@ def get_db():
             port=p.port or 5432,
             user=p.username,
             password=p.password,
-            dbname=p.path.lstrip("/"),
-            sslmode="require"
+            dbname=p.path.lstrip("/")
         )
         conn.cursor_factory = psycopg2.extras.RealDictCursor
         return conn
