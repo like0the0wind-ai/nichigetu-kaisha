@@ -22,7 +22,7 @@ def get_db():
         import psycopg2, psycopg2.extras
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         url = url.split("?")[0]  # pgbouncer=true等のパラメータを除去
-        conn = psycopg2.connect(url)
+        conn = psycopg2.connect(url, sslmode="require")
         conn.cursor_factory = psycopg2.extras.RealDictCursor
         return conn
     else:
