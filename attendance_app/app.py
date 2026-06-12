@@ -36,7 +36,8 @@ def ph():
     return "%s" if DATABASE_URL else "?"
 
 def init_db():
-    with get_db() as conn:
+    conn = get_db()
+    try:
         cur = conn.cursor()
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS records (
@@ -82,11 +83,14 @@ def init_db():
             )
         """)
         conn.commit()
+    finally:
+        conn.close()
 
 def query(sql, params=()):
     p = ph()
     sql = sql.replace("?", p)
-    with get_db() as conn:
+    conn = get_db()
+    try:
         cur = conn.cursor()
         cur.execute(sql, params)
         conn.commit()
@@ -94,14 +98,19 @@ def query(sql, params=()):
             return cur.fetchall()
         except Exception:
             return []
+    finally:
+        conn.close()
 
 def execute(sql, params=()):
     p = ph()
     sql = sql.replace("?", p)
-    with get_db() as conn:
+    conn = get_db()
+    try:
         cur = conn.cursor()
         cur.execute(sql, params)
         conn.commit()
+    finally:
+        conn.close()
 
 STANDARD_HOURS = 6  # 基本労働時間
 
