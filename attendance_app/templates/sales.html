@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日次売上 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+
+    .card {
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1);
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: 1rem; font-weight: normal; letter-spacing: .1em; }
+
+    .add-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; }
+    .add-form label { font-size: .82rem; color: #7a4010; display: block; margin-bottom: .25rem; }
+    input[type=date], input[type=number], input[type=text], select, textarea {
+      width: 100%; padding: .6rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    .form-actions { display: flex; gap: .75rem; align-items: flex-end; }
+    .btn { padding: .65rem 1.4rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; font-family: inherit;
+      white-space: nowrap; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem; font-size: .9rem; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem; font-size: .9rem; }
+
+    /* 月切替 */
+    .month-nav { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+    .month-nav select { width: auto; }
+    .total-badge {
+      display: inline-block; background: #c87941; color: #fff;
+      padding: .3rem .9rem; border-radius: 20px; font-size: .95rem; font-weight: bold;
+      margin-left: auto;
+    }
+
+    table {
+      width: 100%; border-collapse: collapse; font-size: .85rem;
+      background: rgba(255,255,255,0.75); border-radius: 12px; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(120,70,20,.1);
+    }
+    th { background: #c8a878; padding: .65rem .8rem; text-align: left;
+         color: #3a2010; font-weight: normal; letter-spacing: .05em; }
+    td { padding: .6rem .8rem; border-top: 1px solid #e8d5b5; }
+    tr:hover td { background: #f5ede0; }
+    .amount { font-weight: bold; color: #c87941; }
+    .del-btn {
+      background: none; border: 1px solid #c09080; color: #a06050;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer; font-size: .75rem;
+    }
+    .cat-badge {
+      display: inline-block; padding: .15rem .55rem; border-radius: 20px;
+      font-size: .75rem; background: #e8d5b5; color: #7a4010;
+    }
+    .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💰 日次売上記録</h1>
+    <a class="back" href="/admin">← 管理者画面</a>
+  </header>
+
+  <div class="card">
+    <h2>売上を入力</h2>
+    {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input type="hidden" name="action" value="add">
+      <div class="add-form">
+        <div>
+          <label>日付</label>
+          <input type="date" name="date" value="{{ today }}" required>
+        </div>
+        <div>
+          <label>金額（円）</label>
+          <input type="number" name="amount" min="0" placeholder="例: 52000" required>
+        </div>
+        <div>
+          <label>カテゴリ</label>
+          <select name="category">
+            <option value="">— 選択 —</option>
+            <option value="テイクアウト">テイクアウト</option>
+            <option value="イートイン">イートイン</option>
+            <option value="卸・業者">卸・業者</option>
+            <option value="イベント">イベント</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div>
+          <label>メモ</label>
+          <input type="text" name="memo" placeholder="特記事項など">
+        </div>
+      </div>
+      <div style="margin-top:.75rem">
+        <button class="btn" type="submit">記録する</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="month-nav">
+      <h2 style="margin:0">月別売上一覧</h2>
+      <select onchange="location.href='?month='+this.value">
+        {% for m in monthly %}
+        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+        {% if not monthly %}
+        <option value="{{ month }}">{{ month }}</option>
+        {% endif %}
+      </select>
+      <span class="total-badge">合計 ¥{{ "{:,}".format(total) }}</span>
+    </div>
+
+    {% if rows %}
+    <table>
+      <thead>
+        <tr><th>日付</th><th>カテゴリ</th><th>金額</th><th>メモ</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.date }}</td>
+          <td>{% if r.category %}<span class="cat-badge">{{ r.category }}</span>{% else %}—{% endif %}</td>
+          <td class="amount">¥{{ "{:,}".format(r.amount) }}</td>
+          <td>{{ r.memo or '—' }}</td>
+          <td>
+            <form method="post" onsubmit="return confirm('削除しますか？')">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="sale_id" value="{{ r.id }}">
+              <button class="del-btn" type="submit">削除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ month }} の売上記録はありません</div>
+    {% endif %}
+  </div>
+</body>
+</html>

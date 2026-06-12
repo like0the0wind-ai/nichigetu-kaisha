@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>管理者画面 | ニチゲツ</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#c87941">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -14,94 +16,83 @@
     }
     header {
       display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
     }
     h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
-    .header-links { display: flex; gap: 1rem; align-items: center; }
-    .staff-link { color: #c87941; font-size: .85rem; text-decoration: none; border: 1px solid #c87941; padding: .3rem .75rem; border-radius: 8px; }
+    .header-links { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+    .nav-link {
+      color: #c87941; font-size: .82rem; text-decoration: none;
+      border: 1px solid #c87941; padding: .28rem .7rem; border-radius: 8px;
+      white-space: nowrap;
+    }
+    .nav-link:hover { background: #c87941; color: #fff; }
     .logout { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
 
     .period-form {
-      background: rgba(255,255,255,0.75);
-      border: 1px solid #c8a878; border-radius: 12px;
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878; border-radius: 12px;
       padding: 1rem; margin-bottom: 1.25rem;
       display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
     }
     .period-form label { font-size: .85rem; color: #7a4010; white-space: nowrap; }
     input[type=date] {
       padding: .45rem .7rem; background: #faf5ee;
-      border: 1px solid #c8a878; border-radius: 8px;
-      color: #3a2010; font-size: .9rem;
+      border: 1px solid #c8a878; border-radius: 8px; color: #3a2010; font-size: .9rem;
     }
     .sep { color: #9a6a3a; }
     .btn { padding: .5rem 1.1rem; background: #c87941; color: #fff;
-      border: none; border-radius: 8px; cursor: pointer;
-      font-size: .9rem; font-family: inherit; white-space: nowrap; }
+      border: none; border-radius: 8px; cursor: pointer; font-size: .9rem; font-family: inherit; }
     .period-label { font-size: .8rem; color: #9a6a3a; width: 100%; margin-top: -.2rem; }
 
-    /* スタッフ集計 */
-    .summary-cards { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.5rem; }
+    .summary-cards { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; }
     .card {
       background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
       border-radius: 12px; padding: .85rem 1.1rem;
       box-shadow: 0 2px 8px rgba(120,70,20,.1); min-width: 130px;
     }
-    .card-name  { font-size: .85rem; color: #7a4010; margin-bottom: .3rem; }
-    .card-total { font-size: 1.2rem; color: #c87941; font-weight: bold; }
-    .card-days  { font-size: .8rem; color: #9a6a3a; }
-    .card-break { font-size: .8rem; color: #7a6a4a; margin-top: .1rem; }
-    .card-over  { font-size: .8rem; color: #a05030; margin-top: .1rem; font-weight: bold; }
+    .card-name   { font-size: .85rem; color: #7a4010; margin-bottom: .3rem; }
+    .card-total  { font-size: 1.2rem; color: #c87941; font-weight: bold; }
+    .card-over   { font-size: .8rem; color: #a05030; }
+    .card-days   { font-size: .8rem; color: #9a6a3a; }
+    .payslip-link { display: inline-block; margin-top: .4rem; font-size: .75rem;
+      color: #c87941; text-decoration: none; border-bottom: 1px dashed #c87941; }
 
-    /* 日別セクション */
-    .day-section { margin-bottom: 1.5rem; }
-    .day-header {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #c8a878; padding: .6rem 1rem;
-      border-radius: 10px 10px 0 0;
-      font-size: .9rem; color: #3a2010;
-    }
-    .day-total { font-weight: bold; color: #5a2010; }
-
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .75rem;
+         letter-spacing: .1em; font-weight: normal; }
     table {
       width: 100%; border-collapse: collapse;
-      background: rgba(255,255,255,0.75);
-      border-radius: 0 0 10px 10px;
+      background: rgba(255,255,255,0.75); border-radius: 12px;
       overflow: hidden; font-size: .85rem;
       box-shadow: 0 2px 12px rgba(120,70,20,.1);
     }
-    th {
-      background: #ddc898; padding: .55rem .8rem;
-      text-align: left; color: #3a2010;
-      font-weight: normal; letter-spacing: .05em;
-    }
+    th { background: #c8a878; padding: .65rem .8rem; text-align: left;
+         color: #3a2010; font-weight: normal; letter-spacing: .05em; }
     td { padding: .6rem .8rem; border-top: 1px solid #e8d5b5; }
     tr:hover td { background: #f5ede0; }
-    .badge-working {
-      background: #4a7a4a; color: #fff;
-      padding: .15rem .55rem; border-radius: 20px; font-size: .75rem;
-    }
+    .badge-working { background: #4a7a4a; color: #fff;
+      padding: .15rem .55rem; border-radius: 20px; font-size: .75rem; }
     .edit-btn {
-      background: none; border: 1px solid #c8a878;
-      color: #7a4010; border-radius: 6px; padding: .2rem .55rem;
-      cursor: pointer; font-size: .75rem; text-decoration: none;
+      background: none; border: 1px solid #c8a878; color: #7a4010;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer;
+      font-size: .75rem; text-decoration: none;
     }
-    .edit-btn:hover { background: #f5ede0; }
     .del-btn {
-      background: none; border: 1px solid #c09080;
-      color: #a06050; border-radius: 6px; padding: .2rem .55rem;
-      cursor: pointer; font-size: .75rem;
+      background: none; border: 1px solid #c09080; color: #a06050;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer; font-size: .75rem;
     }
-    .del-btn:hover { background: #f5e0d8; }
     .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
     .back { display: inline-block; margin-top: 1.25rem; color: #9a6a3a; font-size: .8rem; text-decoration: none; }
-    .note { font-size: .75rem; color: #9a6a3a; margin-bottom: 1rem; }
   </style>
 </head>
 <body>
   <header>
     <h1>管理者画面 — ニチゲツ</h1>
     <div class="header-links">
-      <a class="staff-link" href="/admin/staff">スタッフ管理</a>
+      <a class="nav-link" href="/admin/sales">💰 売上</a>
+      <a class="nav-link" href="/admin/shifts">📅 シフト</a>
+      <a class="nav-link" href="/admin/products">🍞 商品</a>
+      <a class="nav-link" href="/admin/payslip">📄 給与明細</a>
+      <a class="nav-link" href="/admin/staff">👤 スタッフ</a>
+      <a class="nav-link" href="/admin/instagram">📸 Instagram</a>
       <a class="logout" href="/admin/logout">ログアウト</a>
     </div>
   </header>
@@ -121,56 +112,45 @@
     <div class="card">
       <div class="card-name">{{ s.name }}</div>
       <div class="card-total">{{ s.total }}</div>
-      <div class="card-days">{{ s.days }}日出勤</div>
-      <div class="card-break">休憩 {{ s.break }}</div>
       {% if s.overtime != '—' %}<div class="card-over">残業 {{ s.overtime }}</div>{% endif %}
+      <div class="card-days">{{ s.days }}日出勤</div>
+      <a class="payslip-link"
+         href="/admin/payslip?name={{ s.name }}&from={{ date_from }}&to={{ date_to }}">
+        給与明細を見る
+      </a>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
-  <p class="note">※ 実働時間は15分単位で切り捨て</p>
-
+  <h2>出退勤明細</h2>
   {% if days %}
     {% for day in days %}
-    <div class="day-section">
-      <div class="day-header">
-        <span>{{ day.date }}</span>
-        <span class="day-total">合計 {{ day.total }}{% if day.overtime %} / 残業 {{ day.overtime }}{% endif %}</span>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>残業</th><th colspan="2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in day.records %}
-          <tr>
-            <td>{{ r.name }}</td>
-            <td>{{ r.clock_in }}</td>
-            <td>{{ r.clock_out }}</td>
-            <td>{{ r.break }}</td>
-            <td>
-              {% if r.clock_out == '—' %}
-                <span class="badge-working">出勤中</span>
-              {% else %}
-                {{ r.work }}
-              {% endif %}
-            </td>
-            <td>{{ r.overtime }}</td>
-            <td><a href="/admin/edit/{{ r.id }}" class="edit-btn">修正</a></td>
-            <td>
-              <form method="post" action="/admin/delete/{{ r.id }}"
-                    onsubmit="return confirm('削除しますか？')">
-                <button class="del-btn" type="submit">削除</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <h2 style="margin-top:1rem">{{ day.date }} &nbsp;<small style="color:#9a6a3a;font-size:.8rem">計 {{ day.total }}</small></h2>
+    <table style="margin-bottom:.75rem">
+      <thead>
+        <tr><th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>残業</th><th colspan="2"></th></tr>
+      </thead>
+      <tbody>
+        {% for r in day.records %}
+        <tr>
+          <td>{{ r.name }}</td>
+          <td>{{ r.clock_in }}</td>
+          <td>{{ r.clock_out }}</td>
+          <td>{{ r.break }}</td>
+          <td>{% if r.clock_out == '—' %}<span class="badge-working">出勤中</span>{% else %}{{ r.work }}{% endif %}</td>
+          <td>{{ r.overtime }}</td>
+          <td><a href="/admin/edit/{{ r.id }}" class="edit-btn">修正</a></td>
+          <td>
+            <form method="post" action="/admin/delete/{{ r.id }}"
+                  onsubmit="return confirm('削除しますか？')">
+              <button class="del-btn" type="submit">削除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% endfor %}
   {% else %}
   <div class="empty">この期間の記録はありません</div>

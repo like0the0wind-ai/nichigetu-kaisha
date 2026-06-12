@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>シフト管理 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+    .card {
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1);
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .9rem; font-weight: normal; letter-spacing: .1em; }
+
+    .add-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .65rem; }
+    .add-form label { font-size: .82rem; color: #7a4010; display: block; margin-bottom: .2rem; }
+    select, input[type=date], input[type=time] {
+      width: 100%; padding: .6rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    .btn { padding: .65rem 1.4rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; font-family: inherit; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+
+    /* 週ナビ */
+    .week-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .week-nav a { color: #c87941; text-decoration: none; font-size: .9rem; border: 1px solid #c87941; padding: .3rem .8rem; border-radius: 8px; }
+    .week-nav a:hover { background: #c87941; color: #fff; }
+    .week-label { font-size: .9rem; color: #7a4010; font-weight: bold; }
+
+    /* シフトグリッド */
+    .shift-grid { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 560px; }
+    th { background: #c8a878; padding: .55rem .6rem; text-align: center; color: #3a2010; font-weight: normal; }
+    td { padding: .45rem .5rem; border: 1px solid #e8d5b5; vertical-align: top; min-width: 80px; }
+    .name-col { background: #faf5ee; font-weight: bold; color: #7a4010; white-space: nowrap; }
+    .shift-chip {
+      display: inline-block; background: #c87941; color: #fff;
+      border-radius: 8px; padding: .2rem .5rem; font-size: .78rem;
+      margin: .15rem 0; white-space: nowrap; cursor: default;
+    }
+    .del-chip {
+      display: inline-block; background: none; border: none;
+      color: #fff; font-size: .7rem; cursor: pointer; margin-left: .2rem; opacity: .8;
+    }
+    .del-chip:hover { opacity: 1; }
+    .day-header { font-size: .8rem; }
+    .day-today { color: #c87941; font-weight: bold; }
+    .empty-cell { color: #c8a878; font-size: .75rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📅 シフト管理</h1>
+    <a class="back" href="/admin">← 管理者画面</a>
+  </header>
+
+  <div class="card">
+    <h2>シフトを登録</h2>
+    {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input type="hidden" name="action" value="add">
+      <div class="add-form">
+        <div>
+          <label>スタッフ</label>
+          <select name="name" required>
+            <option value="">— 選択 —</option>
+            {% for s in staff_rows %}
+            <option value="{{ s.name }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>日付</label>
+          <input type="date" name="date" required>
+        </div>
+        <div>
+          <label>開始</label>
+          <input type="time" name="start_time" value="09:00" required>
+        </div>
+        <div>
+          <label>終了</label>
+          <input type="time" name="end_time" value="17:00" required>
+        </div>
+      </div>
+      <div style="margin-top:.75rem">
+        <button class="btn" type="submit">登録</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="week-nav">
+      <a href="?week={{ prev_week }}">◀ 前週</a>
+      <span class="week-label">
+        {{ week_dates[0].strftime('%Y年%m月%d日') }} 〜 {{ week_dates[6].strftime('%m月%d日') }}
+      </span>
+      <a href="?week={{ next_week }}">次週 ▶</a>
+    </div>
+
+    <div class="shift-grid">
+    <table>
+      <thead>
+        <tr>
+          <th>スタッフ</th>
+          {% for d in week_dates %}
+          {% set dow = ['月','火','水','木','金','土','日'][d.weekday()] %}
+          <th class="day-header {% if d.isoformat() == today_str %}day-today{% endif %}">
+            {{ d.strftime('%m/%d') }}<br>({{ dow }})
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% set names = staff_rows | map(attribute='name') | list %}
+        {% if names %}
+          {% for name in names %}
+          <tr>
+            <td class="name-col">{{ name }}</td>
+            {% for d in week_dates %}
+            <td>
+              {% set day_shifts = grid.get(name, {}).get(d.isoformat(), []) %}
+              {% if day_shifts %}
+                {% for sh in day_shifts %}
+                <div>
+                  <span class="shift-chip">
+                    {{ sh.start_time[:5] }}〜{{ sh.end_time[:5] }}
+                    <form method="post" style="display:inline"
+                          onsubmit="return confirm('削除しますか？')">
+                      <input type="hidden" name="action" value="delete">
+                      <input type="hidden" name="shift_id" value="{{ sh.id }}">
+                      <button class="del-chip" type="submit">✕</button>
+                    </form>
+                  </span>
+                </div>
+                {% endfor %}
+              {% else %}
+                <span class="empty-cell">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;color:#9a7a5a;padding:2rem">
+          スタッフを先に登録してください
+        </td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</body>
+</html>

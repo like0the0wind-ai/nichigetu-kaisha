@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商品・レシピ管理 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+    .card {
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1);
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .9rem; font-weight: normal; letter-spacing: .1em; }
+    .add-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .65rem; }
+    .add-form label { font-size: .82rem; color: #7a4010; display: block; margin-bottom: .2rem; }
+    input[type=text], input[type=number], select, textarea {
+      width: 100%; padding: .6rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 70px; }
+    .full-col { grid-column: 1 / -1; }
+    .btn { padding: .65rem 1.4rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; font-family: inherit; }
+    .btn-sm { padding: .3rem .7rem; background: #c87941; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; font-size: .8rem; font-family: inherit; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+
+    .filter-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+    .filter-btn {
+      padding: .3rem .8rem; border: 1px solid #c8a878; border-radius: 20px;
+      background: none; color: #7a4010; font-size: .82rem; cursor: pointer; text-decoration: none;
+      font-family: inherit;
+    }
+    .filter-btn.active { background: #c87941; color: #fff; border-color: #c87941; }
+
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .85rem; }
+    .product-card {
+      background: #faf5ee; border: 1px solid #e8d5b5; border-radius: 12px; padding: 1rem;
+      position: relative;
+    }
+    .product-name { font-size: 1rem; font-weight: bold; color: #3a2010; margin-bottom: .4rem; }
+    .cat-badge {
+      display: inline-block; padding: .15rem .55rem; border-radius: 20px;
+      font-size: .72rem; background: #e8d5b5; color: #7a4010; margin-bottom: .5rem;
+    }
+    .price-row { display: flex; gap: 1.5rem; margin-bottom: .5rem; }
+    .price-item { font-size: .85rem; }
+    .price-item .label { color: #9a6a3a; font-size: .75rem; }
+    .price-item .value { font-weight: bold; color: #c87941; }
+    .margin { font-size: .75rem; color: #6a9a6a; }
+    .recipe-text { font-size: .82rem; color: #5a4030; background: rgba(200,168,120,.15);
+      border-radius: 8px; padding: .5rem .7rem; margin-top: .5rem;
+      white-space: pre-wrap; line-height: 1.5; }
+    .card-actions { display: flex; gap: .5rem; margin-top: .75rem; }
+    .del-btn {
+      background: none; border: 1px solid #c09080; color: #a06050;
+      border-radius: 6px; padding: .25rem .65rem; cursor: pointer; font-size: .78rem;
+      font-family: inherit;
+    }
+    .edit-toggle { display: none; }
+    .edit-form { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #e8d5b5; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: .5rem; }
+    .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🍞 商品・レシピ管理</h1>
+    <a class="back" href="/admin">← 管理者画面</a>
+  </header>
+
+  <div class="card">
+    <h2>商品を追加</h2>
+    {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input type="hidden" name="action" value="add">
+      <div class="add-form">
+        <div>
+          <label>商品名 *</label>
+          <input type="text" name="name" placeholder="例: クロワッサン" required>
+        </div>
+        <div>
+          <label>カテゴリ</label>
+          <input type="text" name="category" placeholder="例: パン・焼き菓子・ドリンク">
+        </div>
+        <div>
+          <label>販売価格（円）</label>
+          <input type="number" name="price" min="0" value="0">
+        </div>
+        <div>
+          <label>原価（円）</label>
+          <input type="number" name="cost" min="0" value="0">
+        </div>
+        <div class="full-col">
+          <label>レシピ・メモ</label>
+          <textarea name="recipe" placeholder="材料・作り方・特記事項など"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:.75rem">
+        <button class="btn" type="submit">追加</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="filter-row">
+      <h2 style="margin:0">商品一覧</h2>
+      <a class="filter-btn {% if not category_filter %}active{% endif %}" href="/admin/products">すべて</a>
+      {% for c in categories %}
+      <a class="filter-btn {% if c.category == category_filter %}active{% endif %}"
+         href="/admin/products?cat={{ c.category }}">{{ c.category }}</a>
+      {% endfor %}
+    </div>
+
+    {% if products %}
+    <div class="product-grid">
+      {% for p in products %}
+      <div class="product-card">
+        {% if p.category %}<span class="cat-badge">{{ p.category }}</span>{% endif %}
+        <div class="product-name">{{ p.name }}</div>
+        <div class="price-row">
+          <div class="price-item">
+            <div class="label">販売価格</div>
+            <div class="value">¥{{ "{:,}".format(p.price) }}</div>
+          </div>
+          <div class="price-item">
+            <div class="label">原価</div>
+            <div class="value" style="color:#9a6a3a">¥{{ "{:,}".format(p.cost) }}</div>
+          </div>
+          {% if p.price > 0 and p.cost > 0 %}
+          <div class="price-item">
+            <div class="label">粗利率</div>
+            <div class="value margin">{{ ((p.price - p.cost) / p.price * 100) | round(1) }}%</div>
+          </div>
+          {% endif %}
+        </div>
+        {% if p.recipe %}
+        <div class="recipe-text">{{ p.recipe }}</div>
+        {% endif %}
+
+        <div class="card-actions">
+          <button class="btn-sm" type="button"
+            onclick="this.closest('.product-card').querySelector('.edit-form').style.display =
+              this.closest('.product-card').querySelector('.edit-form').style.display === 'none' ? 'block' : 'none'">
+            編集
+          </button>
+          <form method="post" onsubmit="return confirm('削除しますか？')" style="display:inline">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="prod_id" value="{{ p.id }}">
+            <button class="del-btn" type="submit">削除</button>
+          </form>
+        </div>
+
+        <div class="edit-form" style="display:none">
+          <form method="post">
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="prod_id" value="{{ p.id }}">
+            <div class="edit-grid">
+              <div><label style="font-size:.78rem;color:#7a4010">商品名</label>
+                <input type="text" name="name" value="{{ p.name }}" required></div>
+              <div><label style="font-size:.78rem;color:#7a4010">カテゴリ</label>
+                <input type="text" name="category" value="{{ p.category }}"></div>
+              <div><label style="font-size:.78rem;color:#7a4010">価格</label>
+                <input type="number" name="price" value="{{ p.price }}" min="0"></div>
+              <div><label style="font-size:.78rem;color:#7a4010">原価</label>
+                <input type="number" name="cost" value="{{ p.cost }}" min="0"></div>
+            </div>
+            <div style="margin-bottom:.5rem">
+              <label style="font-size:.78rem;color:#7a4010">レシピ</label>
+              <textarea name="recipe" style="min-height:60px">{{ p.recipe }}</textarea>
+            </div>
+            <button class="btn-sm" type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">商品が登録されていません</div>
+    {% endif %}
+  </div>
+</body>
+</html>
