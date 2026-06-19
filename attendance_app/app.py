@@ -240,7 +240,17 @@ def index():
                     msg = f"{name} さんの休憩終了を記録しました ✓"
 
     staff_rows = query("SELECT name FROM staff ORDER BY name")
-    return render_template("index.html", staff_rows=staff_rows, msg=msg)
+    staff_status = []
+    for s in staff_rows:
+        name = s["name"]
+        rec = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
+        if rec:
+            br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec[0]["id"],))
+            status = "break" if br else "in"
+        else:
+            status = "out"
+        staff_status.append({"name": name, "status": status})
+    return render_template("index.html", staff_status=staff_status, msg=msg)
 
 # ── 給与期間 ──────────────────────────────────────────────────────
 
