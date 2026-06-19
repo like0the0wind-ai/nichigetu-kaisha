@@ -439,7 +439,9 @@ def admin_payslip():
             })
 
         if download == "1" and results:
-            return _make_payslip_excel(target, date_from, date_to, results)
+            emp = query("SELECT * FROM employees WHERE name=?", (target,))
+            emp = emp[0] if emp else {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
+            return _make_payslip_excel(target, date_from, date_to, results, emp)
 
     return render_template("payslip.html",
         staff_rows=staff_rows, target=target,
@@ -450,17 +452,28 @@ def admin_payslip():
         total_over=fmt_time(sum(r["over_min"] for r in results)),
         days=len(results))
 
-def _make_payslip_excel(name, date_from, date_to, results):
+def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     try:
         import openpyxl
         from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
     except ImportError:
         return "openpyxl が未インストールです。", 500
 
-    total_min = sum(r["work_min"] for r in results)
-    total_h   = total_min // 60
-    total_m   = total_min % 60
-    days      = len(results)
+    emp = emp or {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
+    hourly    = emp["hourly_rate"]
+    transport = emp["transport_allowance"]
+    other_all = emp["other_allowance"]
+
+    total_min  = sum(r["work_min"] for r in results)
+    over_min   = sum(r["over_min"] for r in results)
+    reg_min    = total_min - over_min
+    total_h    = total_min // 60
+    total_m    = total_min % 60
+    days       = len(results)
+
+    base_pay     = int(hourly * reg_min / 60)
+    overtime_pay = int(hourly * 1.25 * over_min / 60)
+    gross_pay    = base_pay + overtime_pay + transport + other_all
 
     # 令和年計算
     reiwa_year = date.fromisoformat(date_from).year - 2018
@@ -518,13 +531,12 @@ def _make_payslip_excel(name, date_from, date_to, results):
     ws["D7"].border = thin
 
     # 労働時間・金額行
-    ws.merge_cells("B8:B8")
     ws["B8"] = f"{total_h}時間　{total_m:02d}分"
     ws["B8"].font = Font(name="MS明朝", size=10)
     ws["B8"].alignment = center
     ws["B8"].border = thin
     ws["C8"].border = thin
-    ws["D8"] = f"{total_min * 0:,.0f}円"  # 時給は別途計算が必要なため空欄
+    ws["D8"] = f"{base_pay + overtime_pay:,}円"
     ws["D8"].font = Font(name="MS明朝", size=10)
     ws["D8"].alignment = right
     ws["D8"].border = thin
@@ -535,19 +547,19 @@ def _make_payslip_excel(name, date_from, date_to, results):
     ws["B9"].alignment = left
     ws["B9"].border = thin
     ws["C9"].border = thin
-    ws["D9"] = "円"
+    ws["D9"] = f"{transport:,}円" if transport else "円"
     ws["D9"].font = Font(name="MS明朝", size=10)
     ws["D9"].alignment = right
     ws["D9"].border = thin
 
     # 合計
     ws["B10"] = "合計"
-    ws["B10"].font = Font(name="MS明朝", size=10)
+    ws["B10"].font = Font(name="MS明朝", size=10, bold=True)
     ws["B10"].alignment = left
     ws["B10"].border = thin
     ws["C10"].border = thin
-    ws["D10"] = "円"
-    ws["D10"].font = Font(name="MS明朝", size=10)
+    ws["D10"] = f"{gross_pay:,}円"
+    ws["D10"].font = Font(name="MS明朝", size=10, bold=True)
     ws["D10"].alignment = right
     ws["D10"].border = thin
 
@@ -596,7 +608,7 @@ def _make_payslip_excel(name, date_from, date_to, results):
     ws["B15"].alignment = left
     ws["B15"].border = thin
     ws["C15"].border = thin
-    ws["D15"] = "円"
+    ws["D15"] = f"{gross_pay:,}円"
     ws["D15"].font = Font(name="MS明朝", bold=True, size=10)
     ws["D15"].alignment = right
     ws["D15"].border = thin
