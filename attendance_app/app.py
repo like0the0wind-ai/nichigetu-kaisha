@@ -474,6 +474,7 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     base_pay     = int(hourly * reg_min / 60)
     overtime_pay = int(hourly * 1.25 * over_min / 60)
     gross_pay    = base_pay + overtime_pay + transport + other_all
+    emp_insurance = int(gross_pay * 0.006)  # 雇用保険：労働者負担0.6%
 
     # 令和年計算
     reiwa_year = date.fromisoformat(date_from).year - 2018
@@ -589,7 +590,7 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["B13"].alignment = left
     ws["B13"].border = thin
     ws["C13"].border = thin
-    ws["D13"] = "円"
+    ws["D13"] = f"{emp_insurance:,}円"
     ws["D13"].font = Font(name="MS明朝", size=10)
     ws["D13"].alignment = right
     ws["D13"].border = thin
@@ -619,7 +620,7 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["B16"].alignment = left
     ws["B16"].border = thin
     ws["C16"].border = thin
-    ws["D16"] = f"{gross_pay:,}円"
+    ws["D16"] = f"{gross_pay - emp_insurance:,}円"
     ws["D16"].font = Font(name="MS明朝", bold=True, size=10)
     ws["D16"].alignment = right
     ws["D16"].border = thin
