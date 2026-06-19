@@ -502,9 +502,9 @@ def _write_one_slip_row(ws, row_offset, name, days,
     gray = PatternFill("solid", fgColor="DDDDDD")
     blue = PatternFill("solid", fgColor="B8CCE4")
 
-    COLS = 13  # 総列数
+    NCOLS = 12  # 総列数
 
-    def cell(ro, co, val="", bold=False, align=ca, border=False, fill=None, size=9):
+    def cell(ro, co, val="", bold=False, align=ca, border=False, fill=None, size=11):
         c = ws.cell(row=row_offset + ro, column=co, value=val)
         c.font = Font(name="MS明朝", bold=bold, size=size)
         c.alignment = align
@@ -518,10 +518,10 @@ def _write_one_slip_row(ws, row_offset, name, days,
                        end_row=row_offset+ro, end_column=c2)
 
     # ── タイトル行 (row 0) ──
-    mmerge(0, 1, 3);  cell(0, 1, "パート給与明細書", bold=True, align=ca, size=10)
+    mmerge(0, 1, 3);  cell(0, 1, "パート給与明細書", bold=True, align=ca, size=12)
     mmerge(0, 4, 5);  cell(0, 4, f"令和{reiwa_year}年{month}月分", align=ca)
     mmerge(0, 6, 9);  cell(0, 6, f"氏名：{name}", align=la)
-    mmerge(0, 10, COLS); cell(0, 10,
+    mmerge(0, 10, NCOLS); cell(0, 10,
         f"対象期間：{df_start.month}/{df_start.day}〜{df_end.month}/{df_end.day}",
         align=ra)
 
@@ -537,18 +537,18 @@ def _write_one_slip_row(ws, row_offset, name, days,
     # ── データ行 (row 2) ──
     net = gross_pay - emp_insurance
     values = [
-        (f"{days}日",                  ca),
-        (f"{total_h}:{total_m:02d}",   ca),
-        (f"{over_h}:{over_m:02d}",     ca),
-        (f"{hourly:,}",                ra),
+        (f"{days}日",                   ca),
+        (f"{total_h}:{total_m:02d}",    ca),
+        (f"{over_h}:{over_m:02d}",      ca),
+        (f"{hourly:,}",                 ra),
         (f"{base_pay + overtime_pay:,}", ra),
-        (f"{transport:,}",             ra),
-        (f"{gross_pay:,}",             ra),
-        ("",                           ra),  # 所得税は手入力
-        (f"{emp_insurance:,}",         ra),
-        (f"{emp_insurance:,}",         ra),  # 控除合計＝雇用保険のみ
-        ("", ca),  # 支払日は手入力
-        (f"{net:,}",                   ra),
+        (f"{transport:,}",              ra),
+        (f"{gross_pay:,}",              ra),
+        ("",                            ra),  # 所得税は手入力
+        (f"{emp_insurance:,}",          ra),
+        (f"{emp_insurance:,}",          ra),  # 控除合計＝雇用保険のみ
+        ("",                            ca),  # 支払日は手入力
+        (f"{net:,}",                    ra),
     ]
     for i, (v, a) in enumerate(values):
         col = i + 1
@@ -577,8 +577,8 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
     ws.page_setup.fitToHeight = 0
     ws.print_options.horizontalCentered = True
 
-    # 列幅（13列）
-    col_widths = [7, 8, 8, 7, 10, 9, 11, 8, 9, 9, 7, 12]
+    # 列幅（12列）
+    col_widths = [9, 10, 10, 9, 13, 11, 13, 10, 11, 11, 9, 15]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
@@ -594,7 +594,7 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
         row_off = 1 + idx * (SLIP_ROWS + GAP_ROW)
         # 行高
         for r in range(row_off, row_off + SLIP_ROWS):
-            ws.row_dimensions[r].height = 16
+            ws.row_dimensions[r].height = 22
 
         name      = pdata["name"]
         results   = pdata["results"]
