@@ -443,65 +443,163 @@ def admin_payslip():
 def _make_payslip_excel(name, date_from, date_to, results):
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
     except ImportError:
-        return "openpyxl が未インストールです。pip install openpyxl を実行してください。", 500
+        return "openpyxl が未インストールです。", 500
+
+    total_min = sum(r["work_min"] for r in results)
+    total_h   = total_min // 60
+    total_m   = total_min % 60
+    days      = len(results)
+
+    # 令和年計算
+    reiwa_year = date.fromisoformat(date_from).year - 2018
+    month      = date.fromisoformat(date_from).month
+    df_start   = date.fromisoformat(date_from)
+    df_end     = date.fromisoformat(date_to)
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "給与明細"
+    ws.title = "給料支払明細書"
 
-    brown = "C87941"
-    light = "FAF5EE"
-    thin  = Border(
-        left=Side(style="thin", color="C8A878"),
-        right=Side(style="thin", color="C8A878"),
-        top=Side(style="thin", color="C8A878"),
-        bottom=Side(style="thin", color="C8A878"),
+    thin = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
     )
+    center = Alignment(horizontal="center", vertical="center")
+    left   = Alignment(horizontal="left",   vertical="center")
+    right  = Alignment(horizontal="right",  vertical="center")
 
-    ws.merge_cells("A1:F1")
-    ws["A1"] = f"パン屋ニチゲツ　給与明細"
-    ws["A1"].font = Font(bold=True, size=14, color="3A2010")
-    ws["A1"].alignment = Alignment(horizontal="center")
+    def cell(r, c, val="", bold=False, size=11, merge=None, align=center, border=None):
+        ws.cell(row=r, column=c, value=val)
+        ws.cell(row=r, column=c).font = Font(name="MS明朝", bold=bold, size=size)
+        ws.cell(row=r, column=c).alignment = align
+        if merge:
+            ws.merge_cells(merge)
+        if border:
+            ws.cell(row=r, column=c).border = thin
 
-    ws.merge_cells("A2:F2")
-    ws["A2"] = f"氏名: {name}　　期間: {date_from} 〜 {date_to}"
-    ws["A2"].font = Font(size=11, color="7A4010")
-    ws["A2"].alignment = Alignment(horizontal="center")
+    # 列幅
+    ws.column_dimensions["A"].width = 2
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 8
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 2
 
-    headers = ["日付", "出勤", "退勤", "休憩", "勤務時間", "残業"]
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=4, column=col, value=h)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor=brown)
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = thin
+    # 行高
+    for i in range(1, 20):
+        ws.row_dimensions[i].height = 20
 
-    for i, r in enumerate(results, 5):
-        vals = [r["date"], r["clock_in"], r["clock_out"], r["break"], r["work"], r["overtime"]]
-        for col, v in enumerate(vals, 1):
-            cell = ws.cell(row=i, column=col, value=v)
-            cell.alignment = Alignment(horizontal="center")
-            cell.border = thin
-            if i % 2 == 0:
-                cell.fill = PatternFill("solid", fgColor=light)
+    # タイトル
+    cell(1, 2, "給料支払明細書", bold=True, size=14, merge="B1:D1")
+    cell(2, 2, f"（令和{reiwa_year}年{month}月分）", size=11, merge="B2:D2")
+    cell(3, 2, f"{name}様", size=11, merge="B3:D3")
+    cell(4, 2, "")  # 空行
+    cell(5, 2, f"労働日数　自{df_start.month}月{df_start.day}日　至{df_end.month}月{df_end.day}日",
+         size=10, merge="B5:D5", border=True, align=left)
 
-    total_row = len(results) + 5
-    ws.cell(row=total_row, column=1, value="合計").font = Font(bold=True)
-    ws.cell(row=total_row, column=4, value=f"{len(results)} 日").alignment = Alignment(horizontal="center")
-    ws.cell(row=total_row, column=5, value=fmt_time(sum(r["work_min"] for r in results))).font = Font(bold=True, color=brown)
-    ws.cell(row=total_row, column=6, value=fmt_time(sum(r["over_min"] for r in results))).font = Font(bold=True)
-    for col in range(1, 7):
-        ws.cell(row=total_row, column=col).border = thin
+    # 支給額ヘッダー
+    ws.merge_cells("B7:D7")
+    ws["B7"] = "支給額"
+    ws["B7"].font = Font(name="MS明朝", size=10)
+    ws["B7"].alignment = center
+    ws["B7"].border = thin
+    ws["C7"].border = thin
+    ws["D7"].border = thin
 
-    for i, col_letter in enumerate(["A","B","C","D","E","F"], 1):
-        ws.column_dimensions[col_letter].width = 14
+    # 労働時間・金額行
+    ws.merge_cells("B8:B8")
+    ws["B8"] = f"{total_h}時間　{total_m:02d}分"
+    ws["B8"].font = Font(name="MS明朝", size=10)
+    ws["B8"].alignment = center
+    ws["B8"].border = thin
+    ws["C8"].border = thin
+    ws["D8"] = f"{total_min * 0:,.0f}円"  # 時給は別途計算が必要なため空欄
+    ws["D8"].font = Font(name="MS明朝", size=10)
+    ws["D8"].alignment = right
+    ws["D8"].border = thin
+
+    # 交通費
+    ws["B9"] = "交通費"
+    ws["B9"].font = Font(name="MS明朝", size=10)
+    ws["B9"].alignment = left
+    ws["B9"].border = thin
+    ws["C9"].border = thin
+    ws["D9"] = "円"
+    ws["D9"].font = Font(name="MS明朝", size=10)
+    ws["D9"].alignment = right
+    ws["D9"].border = thin
+
+    # 合計
+    ws["B10"] = "合計"
+    ws["B10"].font = Font(name="MS明朝", size=10)
+    ws["B10"].alignment = left
+    ws["B10"].border = thin
+    ws["C10"].border = thin
+    ws["D10"] = "円"
+    ws["D10"].font = Font(name="MS明朝", size=10)
+    ws["D10"].alignment = right
+    ws["D10"].border = thin
+
+    # 控除額ヘッダー
+    ws.merge_cells("B11:D11")
+    ws["B11"] = "控除額"
+    ws["B11"].font = Font(name="MS明朝", size=10)
+    ws["B11"].alignment = center
+    ws["B11"].border = thin
+    ws["C11"].border = thin
+    ws["D11"].border = thin
+
+    # 所得税
+    ws["B12"] = "所得税"
+    ws["B12"].font = Font(name="MS明朝", size=10)
+    ws["B12"].alignment = left
+    ws["B12"].border = thin
+    ws["C12"].border = thin
+    ws["D12"] = "円"
+    ws["D12"].font = Font(name="MS明朝", size=10)
+    ws["D12"].alignment = right
+    ws["D12"].border = thin
+
+    # 空白控除行
+    ws["B13"].border = thin
+    ws["C13"].border = thin
+    ws["D13"] = "円"
+    ws["D13"].font = Font(name="MS明朝", size=10)
+    ws["D13"].alignment = right
+    ws["D13"].border = thin
+
+    # 控除合計
+    ws["B14"] = "合計"
+    ws["B14"].font = Font(name="MS明朝", size=10)
+    ws["B14"].alignment = left
+    ws["B14"].border = thin
+    ws["C14"].border = thin
+    ws["D14"] = "円"
+    ws["D14"].font = Font(name="MS明朝", size=10)
+    ws["D14"].alignment = right
+    ws["D14"].border = thin
+
+    # 差引支給額
+    ws["B15"] = "差引支給額"
+    ws["B15"].font = Font(name="MS明朝", bold=True, size=10)
+    ws["B15"].alignment = left
+    ws["B15"].border = thin
+    ws["C15"].border = thin
+    ws["D15"] = "円"
+    ws["D15"].font = Font(name="MS明朝", bold=True, size=10)
+    ws["D15"].alignment = right
+    ws["D15"].border = thin
+
+    # 会社名
+    ws["D16"] = "ぱんやニチゲツ"
+    ws["D16"].font = Font(name="MS明朝", size=9)
+    ws["D16"].alignment = right
 
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    filename = f"payslip_{date_from}_{date_to}.xlsx"
+    filename = f"payslip_{name}_{date_from}_{date_to}.xlsx"
     return send_file(buf, as_attachment=True, download_name=filename,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
