@@ -583,7 +583,10 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["D12"].alignment = right
     ws["D12"].border = thin
 
-    # 空白控除行
+    # 雇用保険
+    ws["B13"] = "雇用保険"
+    ws["B13"].font = Font(name="MS明朝", size=10)
+    ws["B13"].alignment = left
     ws["B13"].border = thin
     ws["C13"].border = thin
     ws["D13"] = "円"
@@ -591,10 +594,7 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["D13"].alignment = right
     ws["D13"].border = thin
 
-    # 控除合計
-    ws["B14"] = "合計"
-    ws["B14"].font = Font(name="MS明朝", size=10)
-    ws["B14"].alignment = left
+    # 空白控除行
     ws["B14"].border = thin
     ws["C14"].border = thin
     ws["D14"] = "円"
@@ -602,21 +602,32 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["D14"].alignment = right
     ws["D14"].border = thin
 
-    # 差引支給額
-    ws["B15"] = "差引支給額"
-    ws["B15"].font = Font(name="MS明朝", bold=True, size=10)
+    # 控除合計
+    ws["B15"] = "合計"
+    ws["B15"].font = Font(name="MS明朝", size=10)
     ws["B15"].alignment = left
     ws["B15"].border = thin
     ws["C15"].border = thin
-    ws["D15"] = f"{gross_pay:,}円"
-    ws["D15"].font = Font(name="MS明朝", bold=True, size=10)
+    ws["D15"] = "円"
+    ws["D15"].font = Font(name="MS明朝", size=10)
     ws["D15"].alignment = right
     ws["D15"].border = thin
 
-    # 会社名
-    ws["D16"] = "ぱんやニチゲツ"
-    ws["D16"].font = Font(name="MS明朝", size=9)
+    # 差引支給額
+    ws["B16"] = "差引支給額"
+    ws["B16"].font = Font(name="MS明朝", bold=True, size=10)
+    ws["B16"].alignment = left
+    ws["B16"].border = thin
+    ws["C16"].border = thin
+    ws["D16"] = f"{gross_pay:,}円"
+    ws["D16"].font = Font(name="MS明朝", bold=True, size=10)
     ws["D16"].alignment = right
+    ws["D16"].border = thin
+
+    # 会社名
+    ws["D17"] = "ぱんやニチゲツ"
+    ws["D17"].font = Font(name="MS明朝", size=9)
+    ws["D17"].alignment = right
 
     buf = io.BytesIO()
     wb.save(buf)
