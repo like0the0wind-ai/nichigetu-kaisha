@@ -547,7 +547,7 @@ def _write_one_slip_row(ws, row_offset, name, days,
         ("",                           ra),  # 所得税は手入力
         (f"{emp_insurance:,}",         ra),
         (f"{emp_insurance:,}",         ra),  # 控除合計＝雇用保険のみ
-        (f"{df_end.month}/{df_end.day + 15 if df_end.day + 15 <= 31 else (df_end.day + 15 - 31)}", ca),
+        ("", ca),  # 支払日は手入力
         (f"{net:,}",                   ra),
     ]
     for i, (v, a) in enumerate(values):
@@ -602,7 +602,7 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
         hourly    = emp["hourly_rate"]
         transport = emp["transport_allowance"]
         other_all = emp["other_allowance"]
-        days      = len(set(r["clock_in"][:10] for r in results)) if results else 0
+        days      = len(results)
 
         total_min    = sum(r["work_min"] for r in results)
         over_min     = sum(r["over_min"] for r in results)
