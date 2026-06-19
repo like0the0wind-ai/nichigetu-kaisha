@@ -599,9 +599,9 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
         name      = pdata["name"]
         results   = pdata["results"]
         emp       = pdata["emp"]
-        hourly    = emp["hourly_rate"]
-        transport = emp["transport_allowance"]
-        other_all = emp["other_allowance"]
+        hourly    = int(emp["hourly_rate"] or 0)
+        transport = int(emp["transport_allowance"] or 0)
+        other_all = int(emp["other_allowance"] or 0)
         days      = len(results)
 
         total_min    = sum(r["work_min"] for r in results)
