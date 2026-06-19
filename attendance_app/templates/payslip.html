@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>給与明細 {{ slip.employee_name }} | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem; min-height: 100vh;
+    }
+
+    /* 画面表示用ツールバー */
+    .toolbar {
+      display: flex; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .btn {
+      padding: .5rem 1.2rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: .9rem; font-family: inherit;
+    }
+    .btn-outline {
+      padding: .5rem 1.2rem; background: none; color: #7a4010;
+      border: 1px solid #c8a878; border-radius: 8px; cursor: pointer;
+      font-size: .9rem; font-family: inherit; text-decoration: none;
+      display: inline-block;
+    }
+
+    /* 明細本体 */
+    .slip {
+      background: #fff;
+      border: 1px solid #c8a878;
+      border-radius: 14px;
+      padding: 2rem;
+      max-width: 680px;
+      margin: 0 auto;
+      box-shadow: 0 4px 20px rgba(120,70,20,.12);
+    }
+
+    .slip-header {
+      text-align: center;
+      border-bottom: 2px solid #c8a878;
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .slip-header .company { font-size: .9rem; color: #9a6a3a; letter-spacing: .2em; }
+    .slip-header h1 { font-size: 1.4rem; letter-spacing: .25em; color: #3a2010; margin: .35rem 0; }
+    .slip-header .period { font-size: .85rem; color: #7a4010; }
+
+    .slip-meta {
+      display: flex; justify-content: space-between; flex-wrap: wrap;
+      gap: .5rem; margin-bottom: 1.5rem; font-size: .9rem;
+    }
+    .slip-meta .meta-item { display: flex; flex-direction: column; gap: .15rem; }
+    .slip-meta .meta-label { font-size: .75rem; color: #9a6a3a; }
+    .slip-meta .meta-value { color: #3a2010; }
+
+    /* 支給・控除テーブル */
+    .slip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 500px) {
+      .slip-grid { grid-template-columns: 1fr; }
+    }
+
+    .slip-block h3 {
+      font-size: .8rem; letter-spacing: .15em; color: #9a6a3a;
+      border-bottom: 1px solid #e8d5b5; padding-bottom: .3rem; margin-bottom: .6rem;
+      font-weight: normal;
+    }
+    .slip-row {
+      display: flex; justify-content: space-between;
+      padding: .3rem 0; font-size: .88rem;
+      border-bottom: 1px dotted #e8d5b5;
+    }
+    .slip-row:last-child { border-bottom: none; }
+    .slip-row .label { color: #7a4010; }
+    .slip-row .amount { color: #3a2010; }
+    .slip-row.sub { color: #9a7a5a; font-size: .82rem; }
+    .slip-row.bold .amount { font-weight: bold; color: #5a3010; }
+
+    /* 勤怠情報 */
+    .work-info {
+      background: #faf5ee; border: 1px solid #e8d5b5; border-radius: 8px;
+      padding: .85rem 1rem; margin-bottom: 1.25rem;
+      display: flex; flex-wrap: wrap; gap: .75rem;
+    }
+    .work-item { font-size: .82rem; }
+    .work-item .wl { color: #9a6a3a; }
+    .work-item .wv { color: #3a2010; margin-left: .35rem; }
+
+    /* 差引支給額 */
+    .net-pay-box {
+      background: #c87941; border-radius: 10px;
+      padding: 1.1rem 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.25rem;
+    }
+    .net-pay-box .net-label { color: #faf5ee; font-size: .9rem; letter-spacing: .1em; }
+    .net-pay-box .net-amount { color: #fff; font-size: 1.6rem; font-weight: bold; }
+
+    /* 備考 */
+    .slip-note {
+      font-size: .82rem; color: #7a6a4a; border-top: 1px solid #e8d5b5;
+      padding-top: .75rem; margin-top: .25rem;
+    }
+    .slip-footer {
+      text-align: right; font-size: .75rem; color: #b8a888;
+      margin-top: 1rem; padding-top: .75rem; border-top: 1px solid #e8d5b5;
+    }
+
+    /* 印刷スタイル */
+    @media print {
+      body {
+        background: #fff !important;
+        padding: 0 !important;
+      }
+      .toolbar { display: none !important; }
+      .slip {
+        border: 1px solid #aaa !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        padding: 1.5rem !important;
+      }
+      .net-pay-box {
+        background: #555 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button class="btn" onclick="window.print()">🖨 印刷 / PDF保存</button>
+    <a class="btn-outline" href="/admin/payroll?from={{ slip.period_start }}&to={{ slip.period_end }}">← 給与管理へ戻る</a>
+  </div>
+
+  <div class="slip">
+    <!-- ヘッダー -->
+    <div class="slip-header">
+      <div class="company">パン屋ニチゲツ</div>
+      <h1>給　与　明　細　書</h1>
+      <div class="period">
+        {{ slip.period_start[:7].replace("-","年") }}月 給与
+        &nbsp;（{{ slip.period_start[5:].replace("-","月") }}日 〜 {{ slip.period_end[5:].replace("-","月") }}日）
+      </div>
+    </div>
+
+    <!-- 基本情報 -->
+    <div class="slip-meta">
+      <div class="meta-item">
+        <span class="meta-label">氏名</span>
+        <span class="meta-value" style="font-size:1.05rem">{{ slip.employee_name }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">発行日</span>
+        <span class="meta-value">{{ slip.created_at[:10] }}</span>
+      </div>
+    </div>
+
+    <!-- 勤怠情報 -->
+    <div class="work-info">
+      {% set total_h = slip.total_work_min // 60 %}
+      {% set total_m = slip.total_work_min % 60 %}
+      {% set reg_h = slip.regular_min // 60 %}
+      {% set reg_m = slip.regular_min % 60 %}
+      {% set ot_h = slip.overtime_min // 60 %}
+      {% set ot_m = slip.overtime_min % 60 %}
+      <div class="work-item"><span class="wl">総労働時間</span><span class="wv">{{ total_h }}時間{{ "%02d"|format(total_m) }}分</span></div>
+      <div class="work-item"><span class="wl">通常時間</span><span class="wv">{{ reg_h }}時間{{ "%02d"|format(reg_m) }}分</span></div>
+      <div class="work-item"><span class="wl">時間外</span><span class="wv">{{ ot_h }}時間{{ "%02d"|format(ot_m) }}分</span></div>
+    </div>
+
+    <!-- 支給・控除 -->
+    <div class="slip-grid">
+      <!-- 支給 -->
+      <div class="slip-block">
+        <h3>◆ 支　給</h3>
+        <div class="slip-row">
+          <span class="label">基本給（通常）</span>
+          <span class="amount">¥{{ "{:,}".format(slip.base_pay) }}</span>
+        </div>
+        {% if slip.overtime_pay > 0 %}
+        <div class="slip-row">
+          <span class="label">時間外手当（×1.25）</span>
+          <span class="amount">¥{{ "{:,}".format(slip.overtime_pay) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.transport_allowance > 0 %}
+        <div class="slip-row">
+          <span class="label">交通費</span>
+          <span class="amount">¥{{ "{:,}".format(slip.transport_allowance) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.other_allowance > 0 %}
+        <div class="slip-row">
+          <span class="label">その他手当</span>
+          <span class="amount">¥{{ "{:,}".format(slip.other_allowance) }}</span>
+        </div>
+        {% endif %}
+        <div class="slip-row bold" style="margin-top:.4rem;border-top:1px solid #c8a878;padding-top:.4rem">
+          <span class="label">総支給額</span>
+          <span class="amount">¥{{ "{:,}".format(slip.gross_pay) }}</span>
+        </div>
+      </div>
+
+      <!-- 控除 -->
+      <div class="slip-block">
+        <h3>◆ 控　除</h3>
+        {% if slip.health_insurance > 0 %}
+        <div class="slip-row">
+          <span class="label">健康保険</span>
+          <span class="amount">¥{{ "{:,}".format(slip.health_insurance) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.pension > 0 %}
+        <div class="slip-row">
+          <span class="label">厚生年金</span>
+          <span class="amount">¥{{ "{:,}".format(slip.pension) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.employment_insurance > 0 %}
+        <div class="slip-row">
+          <span class="label">雇用保険</span>
+          <span class="amount">¥{{ "{:,}".format(slip.employment_insurance) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.income_tax > 0 %}
+        <div class="slip-row">
+          <span class="label">所得税</span>
+          <span class="amount">¥{{ "{:,}".format(slip.income_tax) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.other_deduction > 0 %}
+        <div class="slip-row">
+          <span class="label">その他控除</span>
+          <span class="amount">¥{{ "{:,}".format(slip.other_deduction) }}</span>
+        </div>
+        {% endif %}
+        {% if slip.total_deduction == 0 %}
+        <div class="slip-row sub">
+          <span class="label">（控除なし）</span>
+          <span class="amount">—</span>
+        </div>
+        {% endif %}
+        <div class="slip-row bold" style="margin-top:.4rem;border-top:1px solid #c8a878;padding-top:.4rem">
+          <span class="label">控除合計</span>
+          <span class="amount">¥{{ "{:,}".format(slip.total_deduction) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 差引支給額 -->
+    <div class="net-pay-box">
+      <span class="net-label">差引支給額（手取り）</span>
+      <span class="net-amount">¥{{ "{:,}".format(slip.net_pay) }}</span>
+    </div>
+
+    <!-- 備考 -->
+    {% if slip.note %}
+    <div class="slip-note">備考: {{ slip.note }}</div>
+    {% endif %}
+
+    <div class="slip-footer">発行: パン屋ニチゲツ</div>
+  </div>
+
+</body>
+</html>
