@@ -90,6 +90,10 @@
         📥 Excel ダウンロード
       </a>
       {% endif %}
+      <a class="btn-excel" style="background:#7a4a9a"
+         href="/admin/payslip/all_excel?from={{ date_from }}&to={{ date_to }}">
+        🖨 全員A4印刷用Excel
+      </a>
     </form>
     {% if target %}<div class="period-label">期間: {{ period_label }}</div>{% endif %}
   </div>

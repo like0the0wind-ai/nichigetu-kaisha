@@ -443,6 +443,40 @@ def admin_payslip():
             emp = emp[0] if emp else {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
             return _make_payslip_excel(target, date_from, date_to, results, emp)
 
+@app.route("/admin/payslip/all_excel")
+@admin_required
+def admin_payslip_all_excel():
+    default_start, default_end = current_pay_period()
+    date_from = request.args.get("from", default_start.isoformat())
+    date_to   = request.args.get("to",   default_end.isoformat())
+
+    staff_rows = query("SELECT name FROM staff ORDER BY name")
+    payslip_data = []
+
+    for s in staff_rows:
+        name = s["name"]
+        rows = query(
+            "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL ORDER BY clock_in",
+            (name, date_from, date_to)
+        )
+        results = []
+        for r in rows:
+            ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+            co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S")
+            break_min = r["break_min"] or 0
+            ci_min = ceil15(ci.hour * 60 + ci.minute)
+            co_min = floor15(co.hour * 60 + co.minute)
+            total  = max(0, co_min - ci_min - break_min)
+            std    = min(total, STANDARD_HOURS * 60)
+            over   = floor15(max(0, total - STANDARD_HOURS * 60))
+            results.append({"work_min": std, "over_min": over})
+
+        emp = query("SELECT * FROM employees WHERE name=?", (name,))
+        emp = emp[0] if emp else {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
+        payslip_data.append({"name": name, "results": results, "emp": emp})
+
+    return _make_all_payslip_excel(payslip_data, date_from, date_to)
+
     return render_template("payslip.html",
         staff_rows=staff_rows, target=target,
         date_from=date_from, date_to=date_to,
@@ -451,6 +485,153 @@ def admin_payslip():
         total_work=fmt_time(sum(r["work_min"] for r in results)),
         total_over=fmt_time(sum(r["over_min"] for r in results)),
         days=len(results))
+
+def _write_one_slip(ws, row_offset, col_offset, name, date_from, date_to,
+                    total_h, total_m, base_pay, overtime_pay, transport,
+                    gross_pay, emp_insurance, reiwa_year, month, df_start, df_end,
+                    Font, Alignment, Border, Side):
+    thin = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+    c = Alignment(horizontal="center", vertical="center")
+    l = Alignment(horizontal="left",   vertical="center")
+    r = Alignment(horizontal="right",  vertical="center")
+
+    def s(ro, co, val="", bold=False, align=c, border=False):
+        cell = ws.cell(row=row_offset+ro, column=col_offset+co, value=val)
+        cell.font = Font(name="MS明朝", bold=bold, size=9)
+        cell.alignment = align
+        if border:
+            cell.border = thin
+
+    def merge(ro, co, ro2, co2):
+        ws.merge_cells(
+            start_row=row_offset+ro, start_column=col_offset+co,
+            end_row=row_offset+ro2, end_column=col_offset+co2
+        )
+
+    def b(ro, co, ro2=None, co2=None):
+        r1, c1 = row_offset+ro, col_offset+co
+        r2 = row_offset+(ro2 if ro2 else ro)
+        c2 = col_offset+(co2 if co2 else co)
+        for rr in range(r1, r2+1):
+            for cc in range(c1, c2+1):
+                ws.cell(rr, cc).border = thin
+
+    merge(0, 0, 0, 3); s(0, 0, "給料支払明細書", bold=True)
+    merge(1, 0, 1, 3); s(1, 0, f"（令和{reiwa_year}年{month}月分）")
+    merge(2, 0, 2, 3); s(2, 0, f"{name}様")
+    merge(4, 0, 4, 3)
+    s(4, 0, f"労働日数　自{df_start.month}月{df_start.day}日　至{df_end.month}月{df_end.day}日", align=l, border=True)
+
+    merge(6, 0, 6, 3); s(6, 0, "支給額", border=True); b(6, 0, 6, 3)
+    merge(7, 0, 7, 1); s(7, 0, f"{total_h}時間{total_m:02d}分", border=True); b(7, 0, 7, 1)
+    s(7, 2, f"{base_pay+overtime_pay:,}円", align=r, border=True); b(7, 2, 7, 3)
+    s(8, 0, "交通費", align=l, border=True); b(8, 0, 8, 1)
+    s(8, 2, f"{transport:,}円" if transport else "円", align=r, border=True); b(8, 2, 8, 3)
+    s(9, 0, "合計", bold=True, align=l, border=True); b(9, 0, 9, 1)
+    s(9, 2, f"{gross_pay:,}円", bold=True, align=r, border=True); b(9, 2, 9, 3)
+
+    merge(10, 0, 10, 3); s(10, 0, "控除額", border=True); b(10, 0, 10, 3)
+    s(11, 0, "所得税", align=l, border=True); b(11, 0, 11, 1)
+    s(11, 2, "円", align=r, border=True); b(11, 2, 11, 3)
+    s(12, 0, "雇用保険", align=l, border=True); b(12, 0, 12, 1)
+    s(12, 2, f"{emp_insurance:,}円", align=r, border=True); b(12, 2, 12, 3)
+    s(13, 0, "", border=True); b(13, 0, 13, 1)
+    s(13, 2, "円", align=r, border=True); b(13, 2, 13, 3)
+    s(14, 0, "合計", align=l, border=True); b(14, 0, 14, 1)
+    s(14, 2, "円", align=r, border=True); b(14, 2, 14, 3)
+    s(15, 0, "差引支給額", bold=True, align=l, border=True); b(15, 0, 15, 1)
+    s(15, 2, f"{gross_pay - emp_insurance:,}円", bold=True, align=r, border=True); b(15, 2, 15, 3)
+    s(16, 3, "ぱんやニチゲツ", align=r)
+
+
+def _make_all_payslip_excel(payslip_data, date_from, date_to):
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return "openpyxl が未インストールです。", 500
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "給料支払明細書"
+
+    # A4横（landscape）設定
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize   = 9  # A4
+    ws.page_setup.fitToPage   = True
+    ws.page_setup.fitToWidth  = 1
+    ws.page_setup.fitToHeight = 0
+    ws.print_options.horizontalCentered = True
+
+    # 列幅：左ブロック(A-D) + 区切り(E) + 右ブロック(F-I)
+    col_widths = [14, 7, 12, 2, 3, 14, 7, 12, 2]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    # 行高
+    for i in range(1, 42):
+        ws.row_dimensions[i].height = 14
+
+    df_start    = date.fromisoformat(date_from)
+    df_end      = date.fromisoformat(date_to)
+    reiwa_year  = df_start.year - 2018
+    month       = df_start.month
+
+    # 4人ずつシートに配置（2×2）
+    PER_PAGE = 4
+    SLIP_ROWS = 18  # 1明細の行数
+    GAP_ROW   = 2   # 明細間の隙間
+
+    for page_idx in range(0, len(payslip_data), PER_PAGE):
+        if page_idx > 0:
+            ws = wb.create_sheet(f"Sheet{page_idx//PER_PAGE+1}")
+            ws.page_setup.orientation = "landscape"
+            ws.page_setup.paperSize   = 9
+            ws.page_setup.fitToPage   = True
+            ws.page_setup.fitToWidth  = 1
+            ws.page_setup.fitToHeight = 0
+            for i, w in enumerate(col_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = w
+            for i in range(1, 42):
+                ws.row_dimensions[i].height = 14
+
+        for slot, pdata in enumerate(payslip_data[page_idx:page_idx+PER_PAGE]):
+            col_off = 0 if slot % 2 == 0 else 5   # 左:0 右:5
+            row_off = 0 if slot < 2 else SLIP_ROWS + GAP_ROW
+
+            name    = pdata["name"]
+            results = pdata["results"]
+            emp     = pdata["emp"]
+            hourly  = emp["hourly_rate"]
+            transport = emp["transport_allowance"]
+            other_all = emp["other_allowance"]
+
+            total_min    = sum(r["work_min"] for r in results)
+            over_min     = sum(r["over_min"] for r in results)
+            reg_min      = total_min - over_min
+            total_h      = total_min // 60
+            total_m      = total_min % 60
+            base_pay     = int(hourly * reg_min / 60)
+            overtime_pay = int(hourly * 1.25 * over_min / 60)
+            gross_pay    = base_pay + overtime_pay + transport + other_all
+            emp_insurance = int(gross_pay * 0.006)
+
+            _write_one_slip(ws, row_off, col_off, name, date_from, date_to,
+                            total_h, total_m, base_pay, overtime_pay, transport,
+                            gross_pay, emp_insurance, reiwa_year, month, df_start, df_end,
+                            Font, Alignment, Border, Side)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"payslips_all_{date_from}_{date_to}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     try:
