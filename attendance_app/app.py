@@ -443,6 +443,15 @@ def admin_payslip():
             emp = emp[0] if emp else {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
             return _make_payslip_excel(target, date_from, date_to, results, emp)
 
+    return render_template("payslip.html",
+        staff_rows=staff_rows, target=target,
+        date_from=date_from, date_to=date_to,
+        results=results,
+        period_label=pay_period_label(date.fromisoformat(date_from), date.fromisoformat(date_to)),
+        total_work=fmt_time(sum(r["work_min"] for r in results)),
+        total_over=fmt_time(sum(r["over_min"] for r in results)),
+        days=len(results))
+
 @app.route("/admin/payslip/all_excel")
 @admin_required
 def admin_payslip_all_excel():
@@ -476,15 +485,6 @@ def admin_payslip_all_excel():
         payslip_data.append({"name": name, "results": results, "emp": emp})
 
     return _make_all_payslip_excel(payslip_data, date_from, date_to)
-
-    return render_template("payslip.html",
-        staff_rows=staff_rows, target=target,
-        date_from=date_from, date_to=date_to,
-        results=results,
-        period_label=pay_period_label(date.fromisoformat(date_from), date.fromisoformat(date_to)),
-        total_work=fmt_time(sum(r["work_min"] for r in results)),
-        total_over=fmt_time(sum(r["over_min"] for r in results)),
-        days=len(results))
 
 def _write_one_slip_row(ws, row_offset, name, days,
                         total_h, total_m, over_h, over_m, hourly,
