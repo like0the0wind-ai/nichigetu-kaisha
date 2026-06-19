@@ -495,8 +495,8 @@ def _make_payslip_excel(name, date_from, date_to, results):
     for col in range(1, 7):
         ws.cell(row=total_row, column=col).border = thin
 
-    for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = 14
+    for i, col_letter in enumerate(["A","B","C","D","E","F"], 1):
+        ws.column_dimensions[col_letter].width = 14
 
     buf = io.BytesIO()
     wb.save(buf)
