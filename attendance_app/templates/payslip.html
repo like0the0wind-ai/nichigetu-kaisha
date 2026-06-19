@@ -77,24 +77,37 @@
       </div>
       <div>
         <label>開始日</label>
-        <input type="date" name="from" value="{{ date_from }}">
+        <input type="date" id="date_from" name="from" value="{{ date_from }}" oninput="updateLinks()">
       </div>
       <div>
         <label>終了日</label>
-        <input type="date" name="to" value="{{ date_to }}">
+        <input type="date" id="date_to" name="to" value="{{ date_to }}" oninput="updateLinks()">
       </div>
       <button class="btn" type="submit">表示</button>
       {% if target and results %}
-      <a class="btn-excel"
+      <a id="link_dl" class="btn-excel"
          href="/admin/payslip?name={{ target }}&from={{ date_from }}&to={{ date_to }}&dl=1">
         📥 Excel ダウンロード
       </a>
       {% endif %}
-      <a class="btn-excel" style="background:#7a4a9a"
+      <a id="link_all" class="btn-excel" style="background:#7a4a9a"
          href="/admin/payslip/all_excel?from={{ date_from }}&to={{ date_to }}">
         🖨 全員A4印刷用Excel
       </a>
     </form>
+    <script>
+    function updateLinks() {
+      var f = document.getElementById('date_from').value;
+      var t = document.getElementById('date_to').value;
+      var all = document.getElementById('link_all');
+      if (all) all.href = '/admin/payslip/all_excel?from=' + f + '&to=' + t;
+      var dl = document.getElementById('link_dl');
+      if (dl) {
+        var name = document.querySelector('select[name="name"]').value;
+        dl.href = '/admin/payslip?name=' + encodeURIComponent(name) + '&from=' + f + '&to=' + t + '&dl=1';
+      }
+    }
+    </script>
     {% if target %}<div class="period-label">期間: {{ period_label }}</div>{% endif %}
   </div>
 
