@@ -501,15 +501,9 @@ def _make_payslip_excel(name, date_from, date_to, results):
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    filename = f"payslip_{name}_{date_from}_{date_to}.xlsx"
-    from urllib.parse import quote
-    encoded = quote(f"給与明細_{name}_{date_from}_{date_to}.xlsx")
-    response = send_file(buf, as_attachment=True, download_name=filename,
-                         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response.headers["Content-Disposition"] = (
-        f"attachment; filename=\"{filename}\"; filename*=UTF-8''{encoded}"
-    )
-    return response
+    filename = f"payslip_{date_from}_{date_to}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ── 日次売上 ─────────────────────────────────────────────────────
 
