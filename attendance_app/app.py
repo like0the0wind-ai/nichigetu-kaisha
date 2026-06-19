@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 from datetime import datetime, date, timezone, timedelta
 from dateutil.relativedelta import relativedelta
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, jsonify
 
 JST = timezone(timedelta(hours=9))
 
@@ -94,6 +94,41 @@ def init_db():
                 price    INTEGER DEFAULT 0,
                 cost     INTEGER DEFAULT 0,
                 recipe   TEXT DEFAULT ''
+            )
+        """)
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS employees (
+                id                  {serial} PRIMARY KEY {ai},
+                name                TEXT NOT NULL UNIQUE,
+                hourly_rate         INTEGER NOT NULL DEFAULT 0,
+                transport_allowance INTEGER NOT NULL DEFAULT 0,
+                other_allowance     INTEGER NOT NULL DEFAULT 0,
+                notes               TEXT
+            )
+        """)
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS payslips (
+                id                   {serial} PRIMARY KEY {ai},
+                employee_name        TEXT NOT NULL,
+                period_start         TEXT NOT NULL,
+                period_end           TEXT NOT NULL,
+                total_work_min       INTEGER NOT NULL DEFAULT 0,
+                regular_min          INTEGER NOT NULL DEFAULT 0,
+                overtime_min         INTEGER NOT NULL DEFAULT 0,
+                base_pay             INTEGER NOT NULL DEFAULT 0,
+                overtime_pay         INTEGER NOT NULL DEFAULT 0,
+                transport_allowance  INTEGER NOT NULL DEFAULT 0,
+                other_allowance      INTEGER NOT NULL DEFAULT 0,
+                gross_pay            INTEGER NOT NULL DEFAULT 0,
+                health_insurance     INTEGER NOT NULL DEFAULT 0,
+                pension              INTEGER NOT NULL DEFAULT 0,
+                employment_insurance INTEGER NOT NULL DEFAULT 0,
+                income_tax           INTEGER NOT NULL DEFAULT 0,
+                other_deduction      INTEGER NOT NULL DEFAULT 0,
+                total_deduction      INTEGER NOT NULL DEFAULT 0,
+                net_pay              INTEGER NOT NULL DEFAULT 0,
+                note                 TEXT,
+                created_at           TEXT NOT NULL
             )
         """)
         conn.commit()
@@ -706,6 +741,193 @@ def admin_instagram():
                 error = f"分析エラー: {e}"
 
     return render_template("instagram.html", results=results, error=error)
+
+# ── 給与管理（月次明細） ──────────────────────────────────────────
+
+def calc_payslip_data(emp, records_for_period):
+    hourly = emp["hourly_rate"]
+    daily_regular_min = 8 * 60
+    total_work_min = regular_min = overtime_min = 0
+
+    for r in records_for_period:
+        ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+        co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S") if r["clock_out"] else None
+        if co is None:
+            continue
+        work_min = int((co - ci).total_seconds() // 60) - (r["break_min"] or 0)
+        if work_min <= 0:
+            continue
+        total_work_min += work_min
+        regular_min  += min(work_min, daily_regular_min)
+        overtime_min += max(0, work_min - daily_regular_min)
+
+    base_pay     = int(hourly * regular_min / 60)
+    overtime_pay = int(hourly * 1.25 * overtime_min / 60)
+    gross_pay    = base_pay + overtime_pay + emp["transport_allowance"] + emp["other_allowance"]
+
+    return {
+        "total_work_min": total_work_min,
+        "regular_min":    regular_min,
+        "overtime_min":   overtime_min,
+        "base_pay":       base_pay,
+        "overtime_pay":   overtime_pay,
+        "transport_allowance": emp["transport_allowance"],
+        "other_allowance":     emp["other_allowance"],
+        "gross_pay":      gross_pay,
+    }
+
+@app.route("/admin/payroll")
+@admin_required
+def admin_payroll():
+    default_start, default_end = current_pay_period()
+    date_from = request.args.get("from", default_start.isoformat())
+    date_to   = request.args.get("to",   default_end.isoformat())
+
+    employees = query("SELECT * FROM employees ORDER BY name")
+    saved_slips = query(
+        "SELECT * FROM payslips WHERE period_start=? AND period_end=? ORDER BY employee_name",
+        (date_from, date_to)
+    )
+    issued_names = {p["employee_name"] for p in saved_slips}
+
+    records = query(
+        "SELECT * FROM records WHERE date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL",
+        (date_from, date_to)
+    )
+    summary = {}
+    for r in records:
+        n = r["name"]
+        ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+        co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S")
+        work_min = int((co - ci).total_seconds() // 60) - (r["break_min"] or 0)
+        if n not in summary:
+            summary[n] = {"days": 0, "total_min": 0}
+        summary[n]["days"] += 1
+        summary[n]["total_min"] += max(0, work_min)
+
+    return render_template("payroll.html",
+        employees=employees,
+        payslips=saved_slips,
+        issued_names=issued_names,
+        summary=summary,
+        date_from=date_from,
+        date_to=date_to,
+        period_label=pay_period_label(date.fromisoformat(date_from), date.fromisoformat(date_to))
+    )
+
+@app.route("/admin/payroll/employee/save", methods=["POST"])
+@admin_required
+def admin_employee_save():
+    emp_id    = request.form.get("id", "").strip()
+    name      = request.form["name"].strip()
+    hourly    = int(request.form.get("hourly_rate", 0) or 0)
+    transport = int(request.form.get("transport_allowance", 0) or 0)
+    other     = int(request.form.get("other_allowance", 0) or 0)
+    notes     = request.form.get("notes", "").strip()
+
+    if emp_id:
+        execute(
+            "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, notes=? WHERE id=?",
+            (name, hourly, transport, other, notes, emp_id)
+        )
+    else:
+        execute(
+            "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, notes) VALUES (?,?,?,?,?)",
+            (name, hourly, transport, other, notes)
+        )
+    return redirect(url_for("admin_payroll"))
+
+@app.route("/admin/payroll/employee/<int:emp_id>/delete", methods=["POST"])
+@admin_required
+def admin_employee_delete(emp_id):
+    execute("DELETE FROM employees WHERE id=?", (emp_id,))
+    return redirect(url_for("admin_payroll"))
+
+@app.route("/admin/payroll/preview", methods=["POST"])
+@admin_required
+def admin_payslip_preview():
+    emp_name  = request.json.get("employee_name")
+    date_from = request.json.get("date_from")
+    date_to   = request.json.get("date_to")
+
+    emps = query("SELECT * FROM employees WHERE name=?", (emp_name,))
+    if not emps:
+        return jsonify({"error": "従業員が見つかりません"})
+    emp = emps[0]
+
+    records = query(
+        "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL",
+        (emp_name, date_from, date_to)
+    )
+    return jsonify(calc_payslip_data(emp, records))
+
+@app.route("/admin/payroll/generate", methods=["POST"])
+@admin_required
+def admin_payroll_generate():
+    emp_name  = request.form["employee_name"]
+    date_from = request.form["date_from"]
+    date_to   = request.form["date_to"]
+    note      = request.form.get("note", "").strip()
+
+    emps = query("SELECT * FROM employees WHERE name=?", (emp_name,))
+    if not emps:
+        return redirect(url_for("admin_payroll"))
+    emp = emps[0]
+
+    records = query(
+        "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL",
+        (emp_name, date_from, date_to)
+    )
+    data = calc_payslip_data(emp, records)
+
+    health  = int(request.form.get("health_insurance", 0) or 0)
+    pension = int(request.form.get("pension", 0) or 0)
+    emp_ins = int(request.form.get("employment_insurance", 0) or 0)
+    tax     = int(request.form.get("income_tax", 0) or 0)
+    other_d = int(request.form.get("other_deduction", 0) or 0)
+    total_d = health + pension + emp_ins + tax + other_d
+    net_pay = data["gross_pay"] - total_d
+
+    execute(
+        "DELETE FROM payslips WHERE employee_name=? AND period_start=? AND period_end=?",
+        (emp_name, date_from, date_to)
+    )
+    execute("""
+        INSERT INTO payslips (
+            employee_name, period_start, period_end,
+            total_work_min, regular_min, overtime_min,
+            base_pay, overtime_pay, transport_allowance, other_allowance, gross_pay,
+            health_insurance, pension, employment_insurance, income_tax, other_deduction,
+            total_deduction, net_pay, note, created_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (
+        emp_name, date_from, date_to,
+        data["total_work_min"], data["regular_min"], data["overtime_min"],
+        data["base_pay"], data["overtime_pay"],
+        data["transport_allowance"], data["other_allowance"], data["gross_pay"],
+        health, pension, emp_ins, tax, other_d,
+        total_d, net_pay, note, now_jst()
+    ))
+
+    slip = query(
+        "SELECT id FROM payslips WHERE employee_name=? AND period_start=? AND period_end=? ORDER BY id DESC LIMIT 1",
+        (emp_name, date_from, date_to)
+    )
+    return redirect(url_for("admin_payslip_print", slip_id=slip[0]["id"]))
+
+@app.route("/admin/payroll/slip/<int:slip_id>")
+@admin_required
+def admin_payslip_print(slip_id):
+    slips = query("SELECT * FROM payslips WHERE id=?", (slip_id,))
+    if not slips:
+        return redirect(url_for("admin_payroll"))
+    return render_template("payslip_print.html", slip=slips[0])
+
+@app.route("/admin/payroll/slip/<int:slip_id>/delete", methods=["POST"])
+@admin_required
+def admin_payslip_slip_delete(slip_id):
+    execute("DELETE FROM payslips WHERE id=?", (slip_id,))
+    return redirect(url_for("admin_payroll"))
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():

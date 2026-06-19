@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>給与管理 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem;
+    }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .nav-links { display: flex; gap: 1rem; align-items: center; }
+    .nav-links a { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .75rem;
+         letter-spacing: .1em; font-weight: normal; }
+
+    /* 期間フィルター */
+    .period-form {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid #c8a878; border-radius: 12px;
+      padding: 1rem; margin-bottom: 1.5rem;
+      display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+    }
+    .period-form label { font-size: .85rem; color: #7a4010; white-space: nowrap; }
+    input[type=date], input[type=number], input[type=text], select, textarea {
+      padding: .45rem .7rem; background: #faf5ee;
+      border: 1px solid #c8a878; border-radius: 8px;
+      color: #3a2010; font-size: .9rem; font-family: inherit;
+    }
+    .sep { color: #9a6a3a; }
+    .btn {
+      padding: .5rem 1.1rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: .9rem; font-family: inherit; white-space: nowrap;
+    }
+    .btn:hover { background: #a85f28; }
+    .btn-sm {
+      padding: .3rem .75rem; font-size: .8rem; background: #c87941;
+      color: #fff; border: none; border-radius: 6px; cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-outline {
+      padding: .3rem .75rem; font-size: .8rem; background: none;
+      color: #7a4010; border: 1px solid #c8a878; border-radius: 6px;
+      cursor: pointer; font-family: inherit; text-decoration: none;
+      display: inline-block;
+    }
+    .btn-del {
+      padding: .3rem .75rem; font-size: .8rem; background: none;
+      color: #a06050; border: 1px solid #c09080; border-radius: 6px;
+      cursor: pointer; font-family: inherit;
+    }
+    .period-label { font-size: .8rem; color: #9a6a3a; width: 100%; margin-top: -.2rem; }
+
+    /* セクション */
+    .section {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid #c8a878; border-radius: 12px;
+      padding: 1.25rem; margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(120,70,20,.08);
+    }
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    /* 従業員テーブル */
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th {
+      background: #e8d5b5; padding: .55rem .75rem;
+      text-align: left; color: #5a3010; font-weight: normal; letter-spacing: .05em;
+    }
+    td { padding: .55rem .75rem; border-top: 1px solid #e8d5b5; }
+    tr:hover td { background: rgba(255,255,255,0.5); }
+    .empty-row td { text-align: center; color: #9a7a5a; padding: 1.5rem; }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(58,32,16,.4); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #faf5ee; border-radius: 14px;
+      padding: 1.5rem; width: 92vw; max-width: 480px;
+      box-shadow: 0 8px 32px rgba(58,32,16,.25);
+    }
+    .modal h3 { font-size: 1rem; color: #7a4010; margin-bottom: 1rem; font-weight: normal; }
+    .form-row { margin-bottom: .85rem; }
+    .form-row label { display: block; font-size: .8rem; color: #7a4010; margin-bottom: .3rem; }
+    .form-row input, .form-row textarea, .form-row select {
+      width: 100%;
+    }
+    .form-actions { display: flex; gap: .75rem; margin-top: 1.1rem; }
+    .modal-close { background: none; border: none; color: #9a6a3a; cursor: pointer;
+                   font-size: .85rem; font-family: inherit; padding: .4rem .9rem;
+                   border: 1px solid #c8a878; border-radius: 7px; }
+
+    /* 明細発行フォーム */
+    .issue-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }
+    .issue-form .field { display: flex; flex-direction: column; gap: .3rem; }
+    .issue-form label { font-size: .78rem; color: #7a4010; }
+    .preview-box {
+      background: #f0e6d4; border: 1px solid #c8a878; border-radius: 8px;
+      padding: .75rem 1rem; margin-top: .75rem; font-size: .85rem; display: none;
+    }
+    .preview-box.show { display: block; }
+    .preview-row { display: flex; justify-content: space-between; padding: .2rem 0; }
+    .preview-row.total { border-top: 1px solid #c8a878; margin-top: .3rem; padding-top: .5rem;
+                          font-size: .95rem; color: #7a4010; }
+    .deduction-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: .75rem;
+    }
+
+    /* 発行済み明細リスト */
+    .slip-list { display: flex; flex-direction: column; gap: .6rem; }
+    .slip-card {
+      background: #f5ede0; border: 1px solid #c8a878; border-radius: 8px;
+      padding: .7rem 1rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: .5rem;
+    }
+    .slip-info { font-size: .85rem; }
+    .slip-name { font-size: .9rem; color: #5a3010; }
+    .slip-period { font-size: .75rem; color: #9a6a3a; }
+    .slip-amount { font-size: 1rem; color: #c87941; font-weight: bold; margin-right: .5rem; }
+    .slip-actions { display: flex; gap: .5rem; align-items: center; }
+    .badge-new {
+      background: #4a7a4a; color: #fff; font-size: .72rem;
+      padding: .1rem .45rem; border-radius: 10px; margin-left: .4rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>給与管理 — ニチゲツ</h1>
+    <div class="nav-links">
+      <a href="/admin">← 管理者画面</a>
+      <a href="/admin/logout">ログアウト</a>
+    </div>
+  </header>
+
+  <!-- 期間フィルター -->
+  <form class="period-form" method="get">
+    <label>給与期間</label>
+    <input type="date" name="from" value="{{ date_from }}">
+    <span class="sep">〜</span>
+    <input type="date" name="to" value="{{ date_to }}">
+    <button class="btn" type="submit">表示</button>
+    <div class="period-label">給与期間: {{ period_label }}</div>
+  </form>
+
+  <!-- 給与明細発行 -->
+  <div class="section">
+    <div class="section-head">
+      <h2>給与明細を発行する</h2>
+    </div>
+
+    {% if not employees %}
+      <p style="color:#9a6a3a;font-size:.85rem;">まず下の「従業員設定」でスタッフを登録してください。</p>
+    {% else %}
+    <div class="issue-form">
+      <div class="field">
+        <label>スタッフ</label>
+        <select id="sel-emp">
+          <option value="">-- 選択 --</option>
+          {% for e in employees %}
+          <option value="{{ e.name }}" data-hourly="{{ e.hourly_rate }}" data-transport="{{ e.transport_allowance }}" data-other="{{ e.other_allowance }}">{{ e.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>期間（自動入力済）</label>
+        <span style="font-size:.85rem;color:#9a6a3a;padding:.45rem 0">{{ period_label }}</span>
+      </div>
+      <div style="align-self:flex-end">
+        <button class="btn" type="button" onclick="calcPreview()">計算プレビュー</button>
+      </div>
+    </div>
+
+    <div class="preview-box" id="preview-box">
+      <div style="font-size:.8rem;color:#7a4010;margin-bottom:.5rem">▌ 計算プレビュー</div>
+      <div class="preview-row"><span>通常労働時間</span><span id="pv-reg">—</span></div>
+      <div class="preview-row"><span>時間外労働</span><span id="pv-ot">—</span></div>
+      <div class="preview-row"><span>基本給（通常）</span><span id="pv-base">—</span></div>
+      <div class="preview-row"><span>時間外手当（×1.25）</span><span id="pv-otpay">—</span></div>
+      <div class="preview-row"><span>交通費</span><span id="pv-transport">—</span></div>
+      <div class="preview-row"><span>その他手当</span><span id="pv-other">—</span></div>
+      <div class="preview-row total"><span>総支給額</span><span id="pv-gross" style="font-weight:bold">—</span></div>
+
+      <form method="post" action="/admin/payroll/generate" id="issue-form">
+        <input type="hidden" name="employee_name" id="f-name">
+        <input type="hidden" name="date_from" value="{{ date_from }}">
+        <input type="hidden" name="date_to" value="{{ date_to }}">
+
+        <div style="margin-top:1rem;font-size:.85rem;color:#7a4010;margin-bottom:.4rem">▌ 控除を入力</div>
+        <div class="deduction-grid">
+          <div class="form-row">
+            <label>健康保険（円）</label>
+            <input type="number" name="health_insurance" min="0" value="0" style="width:100%">
+          </div>
+          <div class="form-row">
+            <label>厚生年金（円）</label>
+            <input type="number" name="pension" min="0" value="0" style="width:100%">
+          </div>
+          <div class="form-row">
+            <label>雇用保険（円）</label>
+            <input type="number" name="employment_insurance" min="0" value="0" style="width:100%">
+          </div>
+          <div class="form-row">
+            <label>所得税（円）</label>
+            <input type="number" name="income_tax" min="0" value="0" style="width:100%">
+          </div>
+          <div class="form-row" style="grid-column:1/-1">
+            <label>その他控除（円）</label>
+            <input type="number" name="other_deduction" min="0" value="0" style="width:100%">
+          </div>
+          <div class="form-row" style="grid-column:1/-1">
+            <label>備考</label>
+            <input type="text" name="note" placeholder="任意メモ" style="width:100%">
+          </div>
+        </div>
+        <div style="margin-top:.75rem">
+          <button class="btn" type="submit">明細を発行・保存する</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 発行済み明細 -->
+  <div class="section">
+    <div class="section-head">
+      <h2>発行済み明細（{{ period_label }}）</h2>
+    </div>
+    {% if payslips %}
+    <div class="slip-list">
+      {% for p in payslips %}
+      <div class="slip-card">
+        <div class="slip-info">
+          <div class="slip-name">{{ p.employee_name }}</div>
+          <div class="slip-period">{{ p.period_start }} 〜 {{ p.period_end }}　発行: {{ p.created_at[:10] }}</div>
+        </div>
+        <div class="slip-actions">
+          <span class="slip-amount">¥{{ "{:,}".format(p.net_pay) }}</span>
+          <a href="/admin/payroll/slip/{{ p.id }}" class="btn-outline">表示・印刷</a>
+          <form method="post" action="/admin/payroll/slip/{{ p.id }}/delete"
+                onsubmit="return confirm('削除しますか？')">
+            <button class="btn-del" type="submit">削除</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:#9a6a3a;font-size:.85rem;text-align:center;padding:1rem 0">この期間の発行済み明細はありません</p>
+    {% endif %}
+  </div>
+
+  <!-- 従業員設定 -->
+  <div class="section">
+    <div class="section-head">
+      <h2>従業員設定（時給・手当）</h2>
+      <button class="btn-sm" onclick="openEmpModal()">＋ 追加</button>
+    </div>
+    {% if employees %}
+    <table>
+      <thead>
+        <tr>
+          <th>名前</th><th>時給（円）</th><th>交通費（円）</th><th>その他手当（円）</th><th>備考</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in employees %}
+        <tr>
+          <td>{{ e.name }}</td>
+          <td>¥{{ "{:,}".format(e.hourly_rate) }}</td>
+          <td>¥{{ "{:,}".format(e.transport_allowance) }}</td>
+          <td>¥{{ "{:,}".format(e.other_allowance) }}</td>
+          <td style="color:#9a6a3a;font-size:.8rem">{{ e.notes or "—" }}</td>
+          <td>
+            <button class="btn-outline" onclick="editEmp({{ e.id }}, '{{ e.name }}', {{ e.hourly_rate }}, {{ e.transport_allowance }}, {{ e.other_allowance }}, '{{ e.notes or "" }}')">編集</button>
+            <form method="post" action="/admin/payroll/employee/{{ e.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('{{ e.name }} を削除しますか？')">
+              <button class="btn-del" type="submit">削除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#9a6a3a;font-size:.85rem;text-align:center;padding:1rem 0">スタッフが登録されていません</p>
+    {% endif %}
+  </div>
+
+  <!-- 従業員追加・編集モーダル -->
+  <div class="modal-overlay" id="emp-modal" onclick="closeIfOverlay(event)">
+    <div class="modal">
+      <h3 id="modal-title">スタッフを追加</h3>
+      <form method="post" action="/admin/payroll/employee/save">
+        <input type="hidden" name="id" id="m-id">
+        <div class="form-row">
+          <label>名前 *</label>
+          <input type="text" name="name" id="m-name" required>
+        </div>
+        <div class="form-row">
+          <label>時給（円）</label>
+          <input type="number" name="hourly_rate" id="m-hourly" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>交通費（月額・円）</label>
+          <input type="number" name="transport_allowance" id="m-transport" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>その他手当（月額・円）</label>
+          <input type="number" name="other_allowance" id="m-other" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>備考</label>
+          <input type="text" name="notes" id="m-notes" placeholder="任意">
+        </div>
+        <div class="form-actions">
+          <button class="btn" type="submit">保存</button>
+          <button class="modal-close" type="button" onclick="closeEmpModal()">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openEmpModal() {
+      document.getElementById("modal-title").textContent = "スタッフを追加";
+      document.getElementById("m-id").value = "";
+      document.getElementById("m-name").value = "";
+      document.getElementById("m-hourly").value = 0;
+      document.getElementById("m-transport").value = 0;
+      document.getElementById("m-other").value = 0;
+      document.getElementById("m-notes").value = "";
+      document.getElementById("emp-modal").classList.add("open");
+    }
+    function editEmp(id, name, hourly, transport, other, notes) {
+      document.getElementById("modal-title").textContent = "スタッフを編集";
+      document.getElementById("m-id").value = id;
+      document.getElementById("m-name").value = name;
+      document.getElementById("m-hourly").value = hourly;
+      document.getElementById("m-transport").value = transport;
+      document.getElementById("m-other").value = other;
+      document.getElementById("m-notes").value = notes;
+      document.getElementById("emp-modal").classList.add("open");
+    }
+    function closeEmpModal() {
+      document.getElementById("emp-modal").classList.remove("open");
+    }
+    function closeIfOverlay(e) {
+      if (e.target === e.currentTarget) closeEmpModal();
+    }
+
+    function fmtMin(min) {
+      return Math.floor(min/60) + "時間" + String(min%60).padStart(2,"0") + "分";
+    }
+    function fmtYen(n) {
+      return "¥" + Number(n).toLocaleString();
+    }
+
+    async function calcPreview() {
+      const emp = document.getElementById("sel-emp").value;
+      if (!emp) { alert("スタッフを選択してください"); return; }
+
+      const res = await fetch("/admin/payroll/preview", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          employee_name: emp,
+          date_from: "{{ date_from }}",
+          date_to: "{{ date_to }}"
+        })
+      });
+      const d = await res.json();
+      if (d.error) { alert(d.error); return; }
+
+      document.getElementById("pv-reg").textContent = fmtMin(d.regular_min);
+      document.getElementById("pv-ot").textContent = fmtMin(d.overtime_min);
+      document.getElementById("pv-base").textContent = fmtYen(d.base_pay);
+      document.getElementById("pv-otpay").textContent = fmtYen(d.overtime_pay);
+      document.getElementById("pv-transport").textContent = fmtYen(d.transport_allowance);
+      document.getElementById("pv-other").textContent = fmtYen(d.other_allowance);
+      document.getElementById("pv-gross").textContent = fmtYen(d.gross_pay);
+      document.getElementById("f-name").value = emp;
+
+      document.getElementById("preview-box").classList.add("show");
+    }
+  </script>
+</body>
+</html>
