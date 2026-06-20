@@ -103,9 +103,16 @@ def init_db():
                 hourly_rate         INTEGER NOT NULL DEFAULT 0,
                 transport_allowance INTEGER NOT NULL DEFAULT 0,
                 other_allowance     INTEGER NOT NULL DEFAULT 0,
-                notes               TEXT
+                notes               TEXT,
+                fuyou_target        INTEGER NOT NULL DEFAULT 0
             )
         """)
+        cur.execute("ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0") if False else None
+        try:
+            cur.execute("ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+        except Exception:
+            pass
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS payslips (
                 id                   {serial} PRIMARY KEY {ai},
@@ -361,6 +368,7 @@ def admin():
             "year_total": year_total,
             "remaining": remaining,
             "pct": pct,
+            "fuyou_target": int(emp["fuyou_target"]) if emp and emp["fuyou_target"] else 0,
         })
 
     staff_dict = defaultdict(list)
@@ -1180,6 +1188,15 @@ def admin_employee_save():
             "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, notes) VALUES (?,?,?,?,?)",
             (name, hourly, transport, other, notes)
         )
+    return redirect(url_for("admin_payroll"))
+
+@app.route("/admin/payroll/employee/<int:emp_id>/fuyou", methods=["POST"])
+@admin_required
+def admin_employee_fuyou(emp_id):
+    emp = query("SELECT fuyou_target FROM employees WHERE id=?", (emp_id,))
+    if emp:
+        new_val = 0 if emp[0]["fuyou_target"] else 1
+        execute("UPDATE employees SET fuyou_target=? WHERE id=?", (new_val, emp_id))
     return redirect(url_for("admin_payroll"))
 
 @app.route("/admin/payroll/employee/<int:emp_id>/delete", methods=["POST"])
