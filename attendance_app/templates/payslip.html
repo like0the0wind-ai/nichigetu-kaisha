@@ -55,6 +55,18 @@
     tr:hover td { background: #f5ede0; }
     .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
     .period-label { font-size: .8rem; color: #9a6a3a; margin-top: .3rem; }
+    .edit-btn {
+      background: none; border: 1px solid #c8a878; color: #7a4010;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer;
+      font-size: .75rem; text-decoration: none; white-space: nowrap;
+    }
+    .edit-btn:hover { background: #f5ede0; }
+    .del-btn {
+      background: none; border: 1px solid #c09080; color: #a06050;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer;
+      font-size: .75rem; white-space: nowrap;
+    }
+    .del-btn:hover { background: #fde8e0; }
   </style>
 </head>
 <body>
@@ -135,7 +147,7 @@
 
     <table>
       <thead>
-        <tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>勤務時間</th><th>残業</th></tr>
+        <tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>勤務時間</th><th>残業</th><th colspan="2"></th></tr>
       </thead>
       <tbody>
         {% for r in results %}
@@ -146,6 +158,14 @@
           <td>{{ r.break }}</td>
           <td>{{ r.work }}</td>
           <td>{{ r.overtime }}</td>
+          <td><a href="/admin/edit/{{ r.id }}?back=/admin/payslip%3Fname={{ target }}%26from={{ date_from }}%26to={{ date_to }}" class="edit-btn">修正</a></td>
+          <td>
+            <form method="post" action="/admin/delete/{{ r.id }}"
+                  onsubmit="return confirm('削除しますか？')">
+              <input type="hidden" name="back" value="/admin/payslip?name={{ target }}&from={{ date_from }}&to={{ date_to }}">
+              <button class="del-btn" type="submit">削除</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

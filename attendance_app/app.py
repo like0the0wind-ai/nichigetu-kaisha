@@ -462,7 +462,8 @@ def admin_staff():
 @admin_required
 def admin_delete(rec_id):
     execute("DELETE FROM records WHERE id=?", (rec_id,))
-    return redirect(request.referrer or url_for("admin"))
+    back = request.form.get("back") or request.referrer or url_for("admin")
+    return redirect(back)
 
 @app.route("/admin/edit/<int:rec_id>", methods=["GET", "POST"])
 @admin_required
@@ -486,7 +487,8 @@ def admin_edit(rec_id):
                      ci.strftime("%Y-%m-%d %H:%M:%S"),
                      co.strftime("%Y-%m-%d %H:%M:%S") if co else None,
                      rec_id))
-            return redirect(url_for("admin"))
+            back = request.form.get("back") or request.args.get("back") or url_for("admin")
+            return redirect(back)
         except ValueError as e:
             error = f"入力エラー: {e}"
 
@@ -525,6 +527,7 @@ def admin_payslip():
             else:
                 std = over = None
             results.append({
+                "id": r["id"],
                 "date": ci.strftime("%Y/%m/%d"),
                 "clock_in": ci.strftime("%H:%M"),
                 "clock_out": co.strftime("%H:%M") if co else "—",

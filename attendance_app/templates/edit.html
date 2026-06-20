@@ -57,6 +57,7 @@
     {% endif %}
 
     <form method="post">
+      <input type="hidden" name="back" value="{{ request.args.get('back', '') }}">
       <div class="field">
         <label>名前</label>
         <input type="text" name="name" value="{{ rec.name }}" required>
@@ -71,7 +72,8 @@
       </div>
       <div class="btns">
         <button class="btn-save" type="submit">保存</button>
-        <a class="btn-cancel" href="/admin">キャンセル</a>
+        {% set back_url = request.args.get('back') or '/admin' %}
+        <a class="btn-cancel" href="{{ back_url }}">キャンセル</a>
       </div>
     </form>
   </div>
