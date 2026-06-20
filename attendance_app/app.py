@@ -384,13 +384,55 @@ def admin():
             "other_income": other_income,
         })
 
+    return render_template("admin.html",
+        staff_summary=staff_summary,
+        date_from=date_from, date_to=date_to,
+        period_label=pay_period_label(
+            date.fromisoformat(date_from), date.fromisoformat(date_to)))
+
+@app.route("/admin/attendance")
+@admin_required
+def admin_attendance():
+    default_start, default_end = current_pay_period()
+    date_from = request.args.get("from", default_start.isoformat())
+    date_to   = request.args.get("to",   default_end.isoformat())
+
+    rows = query(
+        "SELECT * FROM records WHERE date(clock_in) BETWEEN ? AND ? ORDER BY clock_in",
+        (date_from, date_to)
+    )
+    records = []
+    for r in rows:
+        ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+        co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S") if r["clock_out"] else None
+        break_min = r["break_min"] or 0
+        if co:
+            ci_min = ceil15(ci.hour * 60 + ci.minute)
+            co_min = floor15(co.hour * 60 + co.minute)
+            total_min = max(0, co_min - ci_min - break_min)
+            std_min  = min(total_min, STANDARD_HOURS * 60)
+            over_min = floor15(max(0, total_min - STANDARD_HOURS * 60))
+        else:
+            std_min = over_min = None
+        records.append({
+            "id": r["id"], "name": r["name"],
+            "date": ci.strftime("%m/%d"),
+            "clock_in": ci.strftime("%H:%M"),
+            "clock_out": co.strftime("%H:%M") if co else "—",
+            "work": fmt_time(std_min) if std_min is not None else "出勤中",
+            "overtime": fmt_time(over_min) if over_min else "—",
+            "break": fmt_time(break_min) if break_min else "—",
+            "work_min": std_min or 0,
+            "over_min": over_min or 0,
+        })
+
     staff_dict = defaultdict(list)
     for r in records:
         staff_dict[r["name"]].append(r)
     staff_records = [{"name": n, "records": staff_dict[n]} for n in sorted(staff_dict)]
 
-    return render_template("admin.html",
-        staff_summary=staff_summary, staff_records=staff_records,
+    return render_template("attendance.html",
+        staff_records=staff_records,
         date_from=date_from, date_to=date_to,
         period_label=pay_period_label(
             date.fromisoformat(date_from), date.fromisoformat(date_to)))
