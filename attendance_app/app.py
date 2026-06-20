@@ -145,6 +145,23 @@ def init_db():
                 created_at           TEXT NOT NULL
             )
         """)
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS year_end_adj (
+                id                   {serial} PRIMARY KEY {ai},
+                name                 TEXT NOT NULL,
+                year                 INTEGER NOT NULL,
+                social_insurance     INTEGER NOT NULL DEFAULT 0,
+                life_insurance       INTEGER NOT NULL DEFAULT 0,
+                earthquake_insurance INTEGER NOT NULL DEFAULT 0,
+                disability           INTEGER NOT NULL DEFAULT 0,
+                dependent_count      INTEGER NOT NULL DEFAULT 0,
+                specific_dependent   INTEGER NOT NULL DEFAULT 0,
+                old_dependent        INTEGER NOT NULL DEFAULT 0,
+                spouse_income        INTEGER NOT NULL DEFAULT 0,
+                withheld_tax         INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(name, year)
+            )
+        """)
         conn.commit()
     finally:
         conn.close()
@@ -495,6 +512,345 @@ def admin_edit(rec_id):
     ci_val = rec["clock_in"][:16].replace(" ", "T") if rec["clock_in"] else ""
     co_val = rec["clock_out"][:16].replace(" ", "T") if rec["clock_out"] else ""
     return render_template("edit.html", rec=rec, ci_val=ci_val, co_val=co_val, error=error)
+
+# ── 年末調整 計算ロジック ──────────────────────────────────────────
+
+def _emp_deduction(gross):
+    """給与所得控除額（令和2年以降）"""
+    if gross <= 1_625_000:
+        return 550_000
+    elif gross <= 1_800_000:
+        return int(gross * 0.4) - 100_000
+    elif gross <= 3_600_000:
+        return int(gross * 0.3) + 80_000
+    elif gross <= 6_600_000:
+        return int(gross * 0.2) + 440_000
+    elif gross <= 8_500_000:
+        return int(gross * 0.1) + 1_100_000
+    else:
+        return 1_950_000
+
+def _life_ins_deduction(paid):
+    """生命保険料控除（新契約・一般）"""
+    if paid <= 0:
+        return 0
+    elif paid <= 20_000:
+        return paid
+    elif paid <= 40_000:
+        return int(paid * 0.5) + 10_000
+    elif paid <= 80_000:
+        return int(paid * 0.25) + 20_000
+    else:
+        return 40_000
+
+def _income_tax(taxable):
+    """所得税額（超過累進課税）"""
+    if taxable <= 0:
+        return 0
+    brackets = [
+        (1_950_000, 0.05, 0),
+        (3_300_000, 0.10, 97_500),
+        (6_950_000, 0.20, 427_500),
+        (9_000_000, 0.23, 636_000),
+        (18_000_000, 0.33, 1_536_000),
+        (40_000_000, 0.40, 2_796_000),
+    ]
+    for limit, rate, deduct in brackets:
+        if taxable <= limit:
+            return int(taxable * rate) - deduct
+    return int(taxable * 0.45) - 4_796_000
+
+def _spouse_deduction(spouse_income):
+    """配偶者控除額（配偶者の合計所得が0の場合38万円）"""
+    if spouse_income <= 480_000:
+        return 380_000
+    elif spouse_income <= 1_330_000:
+        # 配偶者特別控除（簡易版）
+        return max(0, 380_000 - max(0, int((spouse_income - 480_000) / 10_000) * 10_000 // 50_000 * 30_000))
+    else:
+        return 0
+
+def _calc_year_end(name, year, adj):
+    """年末調整メイン計算。結果をdictで返す。"""
+    emp = query("SELECT * FROM employees WHERE name=?", (name,))
+    if not emp:
+        return None
+    emp = dict(emp[0])
+    hourly    = int(emp.get("hourly_rate") or 0)
+    transport = int(emp.get("transport_allowance") or 0)
+    other_all = int(emp.get("other_allowance") or 0)
+
+    rows = query(
+        "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? ORDER BY clock_in",
+        (name, f"{year}-01-01", f"{year}-12-31")
+    )
+
+    gross = 0
+    total_transport = 0
+    work_days = 0
+    for r in rows:
+        r = dict(r)
+        if not r["clock_out"]:
+            continue
+        ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+        co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S")
+        bm = r.get("break_min") or 0
+        ci_m = ceil15(ci.hour * 60 + ci.minute)
+        co_m = floor15(co.hour * 60 + co.minute)
+        total = max(0, co_m - ci_m - bm)
+        std  = min(total, STANDARD_HOURS * 60)
+        over = floor15(max(0, total - STANDARD_HOURS * 60))
+        gross += int(hourly * std / 60) + int(hourly * 1.25 * over / 60) + other_all
+        total_transport += transport
+        work_days += 1
+
+    # 交通費は月10万円まで非課税（全額非課税扱い）
+    taxable_gross = gross
+
+    # 給与所得控除
+    emp_ded   = _emp_deduction(taxable_gross)
+    emp_inc   = max(0, taxable_gross - emp_ded)
+
+    # 各種所得控除
+    basic          = 480_000
+    social         = int(adj.get("social_insurance") or 0)
+    life_paid      = int(adj.get("life_insurance") or 0)
+    life_ded       = _life_ins_deduction(life_paid)
+    eq_paid        = int(adj.get("earthquake_insurance") or 0)
+    eq_ded         = min(eq_paid, 50_000)
+    disability_ded = 270_000 if int(adj.get("disability") or 0) else 0
+    dep_ded        = (
+        int(adj.get("dependent_count") or 0) * 380_000 +
+        int(adj.get("specific_dependent") or 0) * 630_000 +
+        int(adj.get("old_dependent") or 0) * 480_000
+    )
+    spouse_income  = int(adj.get("spouse_income") or 0)
+    spouse_ded     = _spouse_deduction(spouse_income) if spouse_income >= 0 else 0
+
+    total_ded = basic + social + life_ded + eq_ded + disability_ded + dep_ded + spouse_ded
+
+    # 課税所得（1000円未満切り捨て）
+    taxable = max(0, emp_inc - total_ded)
+    taxable = (taxable // 1000) * 1000
+
+    # 所得税 + 復興特別所得税（100円未満切り捨て）
+    inc_tax  = _income_tax(taxable)
+    fukkou   = int(inc_tax * 0.021)
+    year_tax = ((inc_tax + fukkou) // 100) * 100
+
+    withheld = int(adj.get("withheld_tax") or 0)
+    diff     = withheld - year_tax  # +還付 / -追徴
+
+    return dict(
+        name=name, year=year,
+        gross=taxable_gross, transport=total_transport, work_days=work_days,
+        emp_ded=emp_ded, emp_inc=emp_inc,
+        basic=basic, social=social,
+        life_paid=life_paid, life_ded=life_ded,
+        eq_paid=eq_paid, eq_ded=eq_ded,
+        disability_ded=disability_ded,
+        dep_ded=dep_ded, spouse_ded=spouse_ded,
+        total_ded=total_ded,
+        taxable=taxable,
+        inc_tax=inc_tax, fukkou=fukkou, year_tax=year_tax,
+        withheld=withheld, diff=diff,
+    )
+
+
+def _make_gensen_excel(result, adj):
+    """源泉徴収票 Excel"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "源泉徴収票"
+
+    thin = Side(style="thin")
+    med  = Side(style="medium")
+    def border(t=None,b=None,l=None,r=None):
+        return Border(top=t,bottom=b,left=l,right=r)
+
+    ws.page_setup.paperSize  = 9   # A4
+    ws.page_setup.orientation = "landscape"
+    ws.page_margins.left  = 0.4
+    ws.page_margins.right = 0.4
+    ws.page_margins.top   = 0.6
+    ws.page_margins.bottom = 0.6
+
+    # 列幅
+    for col, w in enumerate([3,12,12,12,12,14,12,12,12,12], 1):
+        ws.column_dimensions[chr(64+col)].width = w
+    for r in range(1, 30):
+        ws.row_dimensions[r].height = 18
+
+    title_font = Font(name="MS明朝", size=14, bold=True)
+    hdr_font   = Font(name="MS明朝", size=8)
+    val_font   = Font(name="MS明朝", size=10)
+    sub_font   = Font(name="MS明朝", size=7)
+    center = Alignment(horizontal="center", vertical="center")
+    right  = Alignment(horizontal="right",  vertical="center")
+    left   = Alignment(horizontal="left",   vertical="center")
+
+    def c(row, col, value="", font=None, align=None, fill=None, num_format=None):
+        cell = ws.cell(row=row, column=col, value=value)
+        if font:      cell.font       = font
+        if align:     cell.alignment  = align
+        if fill:      cell.fill       = fill
+        if num_format:cell.number_format = num_format
+        return cell
+
+    header_fill = PatternFill("solid", fgColor="C8A878")
+    light_fill  = PatternFill("solid", fgColor="FAF5EE")
+
+    # タイトル
+    ws.merge_cells("A1:J1")
+    c(1,1, f"給与所得の源泉徴収票　{result['year']}年分（令和{result['year']-2018}年分）",
+      font=title_font, align=center)
+
+    # 支払を受ける者
+    ws.merge_cells("A3:B3")
+    c(3,1, "支払を受ける者", font=hdr_font, align=center)
+    ws.merge_cells("C3:J3")
+    c(3,3, result["name"], font=val_font, align=left)
+
+    # ヘッダー行
+    headers = [
+        ("支払金額","gross"),
+        ("給与所得控除後\nの金額","emp_inc"),
+        ("所得控除の額\nの合計額","total_ded"),
+        ("源泉徴収税額","withheld"),
+        ("確定年税額","year_tax"),
+        ("差引過不足\n（還付＋/追徴－）","diff"),
+    ]
+    col_start = 2
+    for i,(hdr,_) in enumerate(headers):
+        col = col_start + i
+        ws.merge_cells(start_row=5, start_column=col, end_row=5, end_column=col)
+        cell = ws.cell(row=5, column=col, value=hdr)
+        cell.font = Font(name="MS明朝", size=8)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.fill = header_fill
+        ws.row_dimensions[5].height = 28
+
+    # 値行
+    for i,(_,key) in enumerate(headers):
+        col = col_start + i
+        val = result[key]
+        cell = ws.cell(row=6, column=col, value=val)
+        cell.font = val_font
+        cell.alignment = right
+        cell.number_format = "#,##0"
+        cell.fill = light_fill
+        if key == "diff":
+            cell.font = Font(name="MS明朝", size=10,
+                             color="C03030" if val < 0 else "3A7A3A",
+                             bold=True)
+
+    ws.row_dimensions[6].height = 22
+
+    # 控除明細
+    detail = [
+        ("基礎控除",          result["basic"]),
+        ("社会保険料控除",    result["social"]),
+        ("生命保険料控除",    result["life_ded"]),
+        ("地震保険料控除",    result["eq_ded"]),
+        ("扶養控除",          result["dep_ded"]),
+        ("配偶者控除",        result["spouse_ded"]),
+        ("障害者控除",        result["disability_ded"]),
+    ]
+    c(8, 1, "控除明細", font=Font(name="MS明朝",size=9,bold=True), align=center)
+    for i,(lbl,val) in enumerate(detail):
+        row = 9 + i
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        c(row,1, lbl, font=hdr_font, align=left)
+        c(row,3, val, font=val_font, align=right, num_format="#,##0")
+
+    # 課税所得
+    c(17,1, "課税所得", font=Font(name="MS明朝",size=9,bold=True), align=left)
+    c(17,3, result["taxable"], font=val_font, align=right, num_format="#,##0")
+    c(18,1, "所得税", font=hdr_font, align=left)
+    c(18,3, result["inc_tax"], font=val_font, align=right, num_format="#,##0")
+    c(19,1, "復興特別所得税(2.1%)", font=hdr_font, align=left)
+    c(19,3, result["fukkou"], font=val_font, align=right, num_format="#,##0")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    name_safe = result["name"].replace(" ","_")
+    return send_file(buf, as_attachment=True,
+                     download_name=f"源泉徴収票_{name_safe}_{result['year']}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/admin/yearend", methods=["GET"])
+@admin_required
+def admin_yearend():
+    year = int(request.args.get("year", datetime.now(JST).year))
+    staff_rows = query("SELECT name FROM staff ORDER BY name")
+    items = []
+    for s in staff_rows:
+        name = s["name"]
+        rows = query("SELECT * FROM year_end_adj WHERE name=? AND year=?", (name, year))
+        adj  = dict(rows[0]) if rows else {}
+        calc = _calc_year_end(name, year, adj) if rows else None
+        items.append(dict(name=name, done=bool(rows), calc=calc))
+    return render_template("yearend.html", year=year, items=items,
+                           years=list(range(datetime.now(JST).year, 2022, -1)))
+
+
+@app.route("/admin/yearend/<int:year>/<name>", methods=["GET", "POST"])
+@admin_required
+def admin_yearend_detail(year, name):
+    if request.method == "POST":
+        fields = {
+            "social_insurance":     int(request.form.get("social_insurance") or 0),
+            "life_insurance":       int(request.form.get("life_insurance") or 0),
+            "earthquake_insurance": int(request.form.get("earthquake_insurance") or 0),
+            "disability":           1 if request.form.get("disability") else 0,
+            "dependent_count":      int(request.form.get("dependent_count") or 0),
+            "specific_dependent":   int(request.form.get("specific_dependent") or 0),
+            "old_dependent":        int(request.form.get("old_dependent") or 0),
+            "spouse_income":        int(request.form.get("spouse_income") or -1),
+            "withheld_tax":         int(request.form.get("withheld_tax") or 0),
+        }
+        fields["has_spouse"] = 1 if fields["spouse_income"] >= 0 else 0
+
+        existing = query("SELECT id FROM year_end_adj WHERE name=? AND year=?", (name, year))
+        p = ph()
+        if existing:
+            execute("""UPDATE year_end_adj SET
+                social_insurance=?, life_insurance=?, earthquake_insurance=?,
+                disability=?, dependent_count=?, specific_dependent=?, old_dependent=?,
+                spouse_income=?, withheld_tax=?
+                WHERE name=? AND year=?""".replace("?", p),
+                (fields["social_insurance"], fields["life_insurance"], fields["earthquake_insurance"],
+                 fields["disability"], fields["dependent_count"], fields["specific_dependent"],
+                 fields["old_dependent"], fields["spouse_income"], fields["withheld_tax"],
+                 name, year))
+        else:
+            execute("""INSERT INTO year_end_adj
+                (name, year, social_insurance, life_insurance, earthquake_insurance,
+                 disability, dependent_count, specific_dependent, old_dependent,
+                 spouse_income, withheld_tax)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)""".replace("?", p),
+                (name, year, fields["social_insurance"], fields["life_insurance"],
+                 fields["earthquake_insurance"], fields["disability"],
+                 fields["dependent_count"], fields["specific_dependent"],
+                 fields["old_dependent"], fields["spouse_income"], fields["withheld_tax"]))
+
+        if request.form.get("dl_excel"):
+            adj = fields
+            result = _calc_year_end(name, year, adj)
+            if result:
+                return _make_gensen_excel(result, adj)
+
+        return redirect(url_for("admin_yearend_detail", year=year, name=name))
+
+    rows = query("SELECT * FROM year_end_adj WHERE name=? AND year=?", (name, year))
+    adj  = dict(rows[0]) if rows else {}
+    result = _calc_year_end(name, year, adj) if rows else None
+    return render_template("yearend_detail.html", year=year, name=name, adj=adj, result=result)
+
 
 # ── 給与明細 Excel 出力 ───────────────────────────────────────────
 

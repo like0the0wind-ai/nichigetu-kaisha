@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>年末調整 {{ name }} | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: rgba(255,255,255,0.8); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.08);
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: 1rem; font-weight: normal; letter-spacing: .1em; border-bottom: 1px solid #e8d5b5; padding-bottom: .5rem; }
+
+    .form-row { margin-bottom: .9rem; }
+    .form-row label { display: block; font-size: .8rem; color: #7a4010; margin-bottom: .3rem; }
+    .form-row .hint { font-size: .72rem; color: #9a6a3a; margin-bottom: .3rem; }
+    input[type=number] {
+      width: 100%; padding: .55rem .8rem; background: #faf5ee;
+      border: 1px solid #c8a878; border-radius: 8px; color: #3a2010;
+      font-size: .95rem; font-family: inherit;
+    }
+    .checkbox-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; }
+    .checkbox-row input[type=checkbox] { width: 1rem; height: 1rem; cursor: pointer; }
+    .checkbox-row label { font-size: .88rem; color: #3a2010; cursor: pointer; }
+
+    .btn-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+    .btn-save { flex: 1; padding: .75rem; background: #c87941; color: #fff; border: none; border-radius: 10px; font-size: .95rem; cursor: pointer; font-family: inherit; }
+    .btn-excel { flex: 1; padding: .75rem; background: #3a7a3a; color: #fff; border: none; border-radius: 10px; font-size: .95rem; cursor: pointer; font-family: inherit; }
+
+    /* 計算結果 */
+    .result-section { display: flex; flex-direction: column; gap: .5rem; }
+    .result-group { margin-bottom: .6rem; }
+    .result-group-title { font-size: .75rem; color: #9a6a3a; margin-bottom: .3rem; letter-spacing: .08em; }
+    .result-row { display: flex; justify-content: space-between; align-items: center; padding: .35rem .5rem; border-radius: 6px; font-size: .85rem; }
+    .result-row:nth-child(odd) { background: #faf5ee; }
+    .result-row .label { color: #7a4010; }
+    .result-row .value { font-weight: bold; }
+    .result-row.total { background: #c8a878; color: #3a2010; font-size: .95rem; margin-top: .3rem; }
+    .result-row.total .value { font-size: 1.1rem; }
+    .refund-box {
+      margin-top: 1rem; padding: 1rem; border-radius: 12px; text-align: center;
+      font-size: 1.1rem; font-weight: bold;
+    }
+    .refund-box.refund  { background: #e8f5e8; border: 2px solid #3a7a3a; color: #3a7a3a; }
+    .refund-box.collect { background: #fde8e0; border: 2px solid #c03030; color: #c03030; }
+    .refund-box .sub { font-size: .78rem; font-weight: normal; margin-top: .25rem; opacity: .8; }
+
+    .empty-notice { color: #9a7a5a; font-size: .85rem; text-align: center; padding: 2rem 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📋 年末調整 — {{ name }}（{{ year }}年）</h1>
+    <a class="back" href="/admin/yearend?year={{ year }}">← 一覧へ</a>
+  </header>
+
+  <div class="layout">
+    <!-- 左：入力フォーム -->
+    <div class="card">
+      <h2>控除情報の入力</h2>
+      <form method="post">
+
+        <div class="form-row">
+          <label>源泉徴収税額合計（年間・円）</label>
+          <div class="hint">毎月の給与から天引きした所得税の合計</div>
+          <input type="number" name="withheld_tax" min="0" value="{{ adj.get('withheld_tax', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>社会保険料控除（年間・円）</label>
+          <div class="hint">国民健康保険・国民年金など本人が支払った額</div>
+          <input type="number" name="social_insurance" min="0" value="{{ adj.get('social_insurance', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>生命保険料（年間支払額・円）</label>
+          <div class="hint">控除額は自動計算（最大4万円）</div>
+          <input type="number" name="life_insurance" min="0" value="{{ adj.get('life_insurance', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>地震保険料（年間支払額・円）</label>
+          <div class="hint">控除額は自動計算（最大5万円）</div>
+          <input type="number" name="earthquake_insurance" min="0" value="{{ adj.get('earthquake_insurance', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>扶養親族人数（一般・16歳以上）</label>
+          <input type="number" name="dependent_count" min="0" value="{{ adj.get('dependent_count', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>特定扶養親族人数（19〜22歳）</label>
+          <div class="hint">1人63万円の控除</div>
+          <input type="number" name="specific_dependent" min="0" value="{{ adj.get('specific_dependent', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>老人扶養親族人数（70歳以上）</label>
+          <div class="hint">1人48万円の控除</div>
+          <input type="number" name="old_dependent" min="0" value="{{ adj.get('old_dependent', 0) }}">
+        </div>
+
+        <div class="form-row">
+          <label>配偶者の年収（円、配偶者なし=空欄）</label>
+          <div class="hint">配偶者控除・配偶者特別控除の計算に使用</div>
+          <input type="number" name="spouse_income" min="0"
+                 value="{{ adj.get('spouse_income', '') if adj.get('spouse_income', -1) >= 0 else '' }}">
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="disability" name="disability" value="1"
+                 {% if adj.get('disability') %}checked{% endif %}>
+          <label for="disability">障害者控除（27万円）</label>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-save" type="submit">保存して計算</button>
+          <button class="btn-excel" type="submit" name="dl_excel" value="1">源泉徴収票 Excel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 右：計算結果 -->
+    <div class="card">
+      <h2>計算結果</h2>
+      {% if result %}
+      {% set r = result %}
+      <div class="result-section">
+
+        <div class="result-group">
+          <div class="result-group-title">■ 収入</div>
+          <div class="result-row"><span class="label">年間総支給（交通費除く）</span><span class="value">{{ "{:,}".format(r.gross) }}円</span></div>
+          <div class="result-row"><span class="label">給与所得控除</span><span class="value">▲ {{ "{:,}".format(r.emp_ded) }}円</span></div>
+          <div class="result-row total"><span class="label">給与所得</span><span class="value">{{ "{:,}".format(r.emp_inc) }}円</span></div>
+        </div>
+
+        <div class="result-group">
+          <div class="result-group-title">■ 所得控除</div>
+          <div class="result-row"><span class="label">基礎控除</span><span class="value">{{ "{:,}".format(r.basic) }}円</span></div>
+          <div class="result-row"><span class="label">社会保険料控除</span><span class="value">{{ "{:,}".format(r.social) }}円</span></div>
+          {% if r.life_ded > 0 %}
+          <div class="result-row"><span class="label">生命保険料控除</span><span class="value">{{ "{:,}".format(r.life_ded) }}円</span></div>
+          {% endif %}
+          {% if r.eq_ded > 0 %}
+          <div class="result-row"><span class="label">地震保険料控除</span><span class="value">{{ "{:,}".format(r.eq_ded) }}円</span></div>
+          {% endif %}
+          {% if r.dep_ded > 0 %}
+          <div class="result-row"><span class="label">扶養控除</span><span class="value">{{ "{:,}".format(r.dep_ded) }}円</span></div>
+          {% endif %}
+          {% if r.spouse_ded > 0 %}
+          <div class="result-row"><span class="label">配偶者控除</span><span class="value">{{ "{:,}".format(r.spouse_ded) }}円</span></div>
+          {% endif %}
+          {% if r.disability_ded > 0 %}
+          <div class="result-row"><span class="label">障害者控除</span><span class="value">{{ "{:,}".format(r.disability_ded) }}円</span></div>
+          {% endif %}
+          <div class="result-row total"><span class="label">控除合計</span><span class="value">{{ "{:,}".format(r.total_ded) }}円</span></div>
+        </div>
+
+        <div class="result-group">
+          <div class="result-group-title">■ 税額</div>
+          <div class="result-row"><span class="label">課税所得</span><span class="value">{{ "{:,}".format(r.taxable) }}円</span></div>
+          <div class="result-row"><span class="label">所得税</span><span class="value">{{ "{:,}".format(r.inc_tax) }}円</span></div>
+          <div class="result-row"><span class="label">復興特別所得税（2.1%）</span><span class="value">{{ "{:,}".format(r.fukkou) }}円</span></div>
+          <div class="result-row total"><span class="label">確定年税額</span><span class="value">{{ "{:,}".format(r.year_tax) }}円</span></div>
+          <div class="result-row"><span class="label">源泉徴収税額（支払済）</span><span class="value">{{ "{:,}".format(r.withheld) }}円</span></div>
+        </div>
+
+        {% if r.diff >= 0 %}
+        <div class="refund-box refund">
+          還付額：{{ "{:,}".format(r.diff) }}円
+          <div class="sub">12月給与に上乗せして支払い</div>
+        </div>
+        {% else %}
+        <div class="refund-box collect">
+          追徴額：{{ "{:,}".format(-r.diff) }}円
+          <div class="sub">12月給与から追加徴収</div>
+        </div>
+        {% endif %}
+
+      </div>
+      {% else %}
+      <div class="empty-notice">
+        左のフォームに控除情報を入力して<br>「保存して計算」を押してください
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
