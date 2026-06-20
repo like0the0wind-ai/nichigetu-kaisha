@@ -73,6 +73,16 @@
       background: none; border: 1px solid #c09080; color: #a06050;
       border-radius: 6px; padding: .2rem .55rem; cursor: pointer; font-size: .75rem;
     }
+    .btn-add {
+      padding: .5rem 1rem; background: #4a7a4a; color: #fff;
+      border-radius: 8px; text-decoration: none; font-size: .9rem; white-space: nowrap;
+    }
+    .btn-add:hover { opacity: .85; }
+    .btn-export {
+      padding: .5rem 1rem; background: #3a5a9a; color: #fff;
+      border-radius: 8px; text-decoration: none; font-size: .9rem; white-space: nowrap;
+    }
+    .btn-export:hover { opacity: .85; }
     .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
   </style>
 </head>
@@ -84,12 +94,24 @@
 
   <form class="period-form" method="get">
     <label>期間</label>
-    <input type="date" name="from" value="{{ date_from }}">
+    <input type="date" id="df" name="from" value="{{ date_from }}">
     <span class="sep">〜</span>
     <input type="date" name="to" value="{{ date_to }}">
     <button class="btn" type="submit">表示</button>
+    <a class="btn-add" href="/admin/add?back=/admin/attendance%3Ffrom={{ date_from }}%26to={{ date_to }}">＋ 打刻追加</a>
+    <a id="link-export" class="btn-export"
+       href="/admin/export/monthly?year={{ date_from[:4] }}&month={{ date_from[5:7] }}">📥 月次Excel</a>
     <div class="period-label">給与期間: {{ period_label }}</div>
   </form>
+  <script>
+  document.getElementById('df').addEventListener('change', function() {
+    var v = this.value;
+    if (v.length >= 7) {
+      document.getElementById('link-export').href =
+        '/admin/export/monthly?year=' + v.slice(0,4) + '&month=' + v.slice(5,7);
+    }
+  });
+  </script>
 
   {% if staff_records %}
   <div class="tc-grid">

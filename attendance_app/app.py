@@ -475,6 +475,108 @@ def admin_staff():
 
 # ── 記録編集・削除 ────────────────────────────────────────────────
 
+@app.route("/admin/add", methods=["GET", "POST"])
+@admin_required
+def admin_add():
+    staff_rows = query("SELECT name FROM staff ORDER BY name")
+    error = None
+    if request.method == "POST":
+        name      = request.form.get("name", "").strip()
+        clock_in  = request.form.get("clock_in", "").strip()
+        clock_out = request.form.get("clock_out", "").strip()
+        break_min = int(request.form.get("break_min") or 0)
+        back      = request.form.get("back", "")
+        try:
+            ci = datetime.strptime(clock_in, "%Y-%m-%dT%H:%M")
+            co = datetime.strptime(clock_out, "%Y-%m-%dT%H:%M") if clock_out else None
+            if co and co <= ci:
+                raise ValueError("退勤が出勤以前の時刻です")
+            execute(
+                "INSERT INTO records (name, clock_in, clock_out, break_min) VALUES (?,?,?,?)",
+                (name,
+                 ci.strftime("%Y-%m-%d %H:%M:%S"),
+                 co.strftime("%Y-%m-%d %H:%M:%S") if co else None,
+                 break_min)
+            )
+            return redirect(back or url_for("admin_attendance"))
+        except ValueError as e:
+            error = f"入力エラー: {e}"
+    back = request.args.get("back", "")
+    prefill_name = request.args.get("name", "")
+    prefill_date = request.args.get("date", today_jst())
+    return render_template("add_record.html",
+                           staff_rows=staff_rows, error=error,
+                           back=back, prefill_name=prefill_name,
+                           prefill_date=prefill_date)
+
+
+@app.route("/admin/export/monthly")
+@admin_required
+def admin_export_monthly():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill
+    year  = int(request.args.get("year",  datetime.now(JST).year))
+    month = int(request.args.get("month", datetime.now(JST).month))
+    import calendar
+    last_day = calendar.monthrange(year, month)[1]
+    date_from = f"{year}-{month:02d}-01"
+    date_to   = f"{year}-{month:02d}-{last_day}"
+
+    rows = query(
+        "SELECT * FROM records WHERE date(clock_in) BETWEEN ? AND ? ORDER BY name, clock_in",
+        (date_from, date_to)
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"{year}年{month}月"
+    ws.page_setup.paperSize  = 9
+    ws.page_setup.orientation = "portrait"
+
+    hdr_fill = PatternFill("solid", fgColor="C8A878")
+    hdr_font = Font(name="MS明朝", size=9, bold=True)
+    val_font = Font(name="MS明朝", size=9)
+    center   = Alignment(horizontal="center", vertical="center")
+    right    = Alignment(horizontal="right",  vertical="center")
+
+    headers = ["名前","日付","出勤","退勤","休憩(分)","勤務時間","残業"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = hdr_font; cell.fill = hdr_fill; cell.alignment = center
+    for col, w in enumerate([10,11,8,8,7,9,8], 1):
+        ws.column_dimensions[chr(64+col)].width = w
+
+    for i, r in enumerate(rows, 2):
+        r = dict(r)
+        ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+        co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S") if r["clock_out"] else None
+        bm = r.get("break_min") or 0
+        if co:
+            ci_m = ceil15(ci.hour*60+ci.minute)
+            co_m = floor15(co.hour*60+co.minute)
+            total = max(0, co_m-ci_m-bm)
+            std   = min(total, STANDARD_HOURS*60)
+            over  = floor15(max(0, total-STANDARD_HOURS*60))
+            work_str = fmt_time(std)
+            over_str = fmt_time(over) if over else "—"
+        else:
+            work_str = "出勤中"
+            over_str = "—"
+
+        vals = [r["name"], ci.strftime("%Y/%m/%d"), ci.strftime("%H:%M"),
+                co.strftime("%H:%M") if co else "—", bm, work_str, over_str]
+        for col, v in enumerate(vals, 1):
+            cell = ws.cell(row=i, column=col, value=v)
+            cell.font = val_font
+            cell.alignment = right if isinstance(v, int) else center
+
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    return send_file(buf, as_attachment=True,
+                     download_name=f"出退勤_{year}年{month}月.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 @app.route("/admin/delete/<int:rec_id>", methods=["POST"])
 @admin_required
 def admin_delete(rec_id):
