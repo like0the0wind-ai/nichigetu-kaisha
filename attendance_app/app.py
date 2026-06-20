@@ -854,7 +854,45 @@ def admin_yearend_detail(year, name):
 
 # ── 給与明細 Excel 出力 ───────────────────────────────────────────
 
-@app.route("/admin/payslip")
+def _save_yearend_adj(name, year, form):
+    """フォームから年末調整データを保存し adjdict を返す"""
+    fields = {
+        "social_insurance":     int(form.get("social_insurance") or 0),
+        "life_insurance":       int(form.get("life_insurance") or 0),
+        "earthquake_insurance": int(form.get("earthquake_insurance") or 0),
+        "disability":           1 if form.get("disability") else 0,
+        "dependent_count":      int(form.get("dependent_count") or 0),
+        "specific_dependent":   int(form.get("specific_dependent") or 0),
+        "old_dependent":        int(form.get("old_dependent") or 0),
+        "spouse_income":        int(form.get("spouse_income")) if form.get("spouse_income") != "" else -1,
+        "withheld_tax":         int(form.get("withheld_tax") or 0),
+    }
+    existing = query("SELECT id FROM year_end_adj WHERE name=? AND year=?", (name, year))
+    p = ph()
+    if existing:
+        execute("""UPDATE year_end_adj SET
+            social_insurance=?, life_insurance=?, earthquake_insurance=?,
+            disability=?, dependent_count=?, specific_dependent=?, old_dependent=?,
+            spouse_income=?, withheld_tax=?
+            WHERE name=? AND year=?""".replace("?", p),
+            (fields["social_insurance"], fields["life_insurance"], fields["earthquake_insurance"],
+             fields["disability"], fields["dependent_count"], fields["specific_dependent"],
+             fields["old_dependent"], fields["spouse_income"], fields["withheld_tax"],
+             name, year))
+    else:
+        execute("""INSERT INTO year_end_adj
+            (name, year, social_insurance, life_insurance, earthquake_insurance,
+             disability, dependent_count, specific_dependent, old_dependent,
+             spouse_income, withheld_tax)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""".replace("?", p),
+            (name, year, fields["social_insurance"], fields["life_insurance"],
+             fields["earthquake_insurance"], fields["disability"],
+             fields["dependent_count"], fields["specific_dependent"],
+             fields["old_dependent"], fields["spouse_income"], fields["withheld_tax"]))
+    return fields
+
+
+@app.route("/admin/payslip", methods=["GET", "POST"])
 @admin_required
 def admin_payslip():
     staff_rows = query("SELECT name FROM staff ORDER BY name")
@@ -863,6 +901,17 @@ def admin_payslip():
     date_to   = request.args.get("to",   default_end.isoformat())
     target    = request.args.get("name", "")
     download  = request.args.get("dl", "")
+
+    # 年末調整 POST（控除保存 or Excel出力）
+    if request.method == "POST" and target:
+        calc_year = int(date_from[:4])
+        adj = _save_yearend_adj(target, calc_year, request.form)
+        if request.form.get("dl_gensen"):
+            yr = _calc_year_end(target, calc_year, adj)
+            if yr:
+                return _make_gensen_excel(yr, adj)
+        return redirect(url_for("admin_payslip", name=target,
+                                **{"from": date_from, "to": date_to}))
 
     results = []
     if target:
@@ -899,6 +948,12 @@ def admin_payslip():
             emp = emp[0] if emp else {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
             return _make_payslip_excel(target, date_from, date_to, results, emp)
 
+    # 年末調整データ
+    calc_year = int(date_from[:4])
+    ye_rows = query("SELECT * FROM year_end_adj WHERE name=? AND year=?", (target, calc_year)) if target else []
+    ye_adj  = dict(ye_rows[0]) if ye_rows else {}
+    ye_result = _calc_year_end(target, calc_year, ye_adj) if (target and ye_rows) else None
+
     return render_template("payslip.html",
         staff_rows=staff_rows, target=target,
         date_from=date_from, date_to=date_to,
@@ -906,7 +961,10 @@ def admin_payslip():
         period_label=pay_period_label(date.fromisoformat(date_from), date.fromisoformat(date_to)),
         total_work=fmt_time(sum(r["work_min"] for r in results)),
         total_over=fmt_time(sum(r["over_min"] for r in results)),
-        days=len(results))
+        days=len(results),
+        calc_year=calc_year,
+        ye_adj=ye_adj,
+        ye_result=ye_result)
 
 @app.route("/admin/payslip/all_excel")
 @admin_required
