@@ -108,16 +108,18 @@ def init_db():
             )
         """)
         cur.execute("ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0") if False else None
-        try:
-            cur.execute("ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0")
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            cur.execute("ALTER TABLE employees ADD COLUMN other_income INTEGER NOT NULL DEFAULT 0")
-            conn.commit()
-        except Exception:
-            pass
+        for col_sql in [
+            "ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE employees ADD COLUMN other_income INTEGER NOT NULL DEFAULT 0",
+        ]:
+            try:
+                cur.execute(col_sql)
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS payslips (
                 id                   {serial} PRIMARY KEY {ai},
@@ -1194,15 +1196,27 @@ def admin_employee_save():
     notes        = request.form.get("notes", "").strip()
 
     if emp_id:
-        execute(
-            "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, other_income=?, notes=? WHERE id=?",
-            (name, hourly, transport, other, other_income, notes, emp_id)
-        )
+        try:
+            execute(
+                "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, other_income=?, notes=? WHERE id=?",
+                (name, hourly, transport, other, other_income, notes, emp_id)
+            )
+        except Exception:
+            execute(
+                "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, notes=? WHERE id=?",
+                (name, hourly, transport, other, notes, emp_id)
+            )
     else:
-        execute(
-            "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, other_income, notes) VALUES (?,?,?,?,?,?)",
-            (name, hourly, transport, other, other_income, notes)
-        )
+        try:
+            execute(
+                "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, other_income, notes) VALUES (?,?,?,?,?,?)",
+                (name, hourly, transport, other, other_income, notes)
+            )
+        except Exception:
+            execute(
+                "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, notes) VALUES (?,?,?,?,?)",
+                (name, hourly, transport, other, notes)
+            )
     return redirect(url_for("admin_payroll"))
 
 @app.route("/admin/payroll/employee/<int:emp_id>/fuyou", methods=["POST"])
