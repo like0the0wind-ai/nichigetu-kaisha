@@ -320,12 +320,48 @@ def admin():
         staff[r["name"]]["over_min"] += over_min or 0
         staff[r["name"]]["break_min"] += break_min
 
-    staff_summary = [{"name": n, "days": s["days"],
-        "total": fmt_time(s["total_min"]),
-        "overtime": fmt_time(s["over_min"]) if s["over_min"] else "—",
-        "break": fmt_time(s["break_min"]) if s["break_min"] else "—",
-        "total_min": s["total_min"], "over_min": s["over_min"]}
-        for n, s in sorted(staff.items())]
+    # 年間収入計算（扶養チェック用）
+    year_start = date.fromisoformat(date_from).replace(month=1, day=1).isoformat()
+    year_end   = date.fromisoformat(date_to).replace(month=12, day=31).isoformat()
+    FUYOU_LIMIT = 1_030_000  # 103万円
+
+    staff_summary = []
+    for n, s in sorted(staff.items()):
+        emp = query("SELECT * FROM employees WHERE name=?", (n,))
+        emp = emp[0] if emp else None
+        hourly = int(emp["hourly_rate"] or 0) if emp else 0
+        transport = int(emp["transport_allowance"] or 0) if emp else 0
+
+        # 年間レコード取得
+        yr_rows = query(
+            "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL",
+            (n, year_start, year_end)
+        )
+        year_total = 0
+        for rr in yr_rows:
+            ci = datetime.strptime(rr["clock_in"], "%Y-%m-%d %H:%M:%S")
+            co = datetime.strptime(rr["clock_out"], "%Y-%m-%d %H:%M:%S")
+            bm = rr["break_min"] or 0
+            ci_m = ceil15(ci.hour * 60 + ci.minute)
+            co_m = floor15(co.hour * 60 + co.minute)
+            tot  = max(0, co_m - ci_m - bm)
+            ov   = max(0, tot - STANDARD_HOURS * 60)
+            reg  = tot - ov
+            pay  = int(hourly * reg / 60) + int(hourly * 1.25 * ov / 60) + transport
+            year_total += pay
+
+        remaining = FUYOU_LIMIT - year_total
+        pct = min(100, int(year_total / FUYOU_LIMIT * 100))
+
+        staff_summary.append({
+            "name": n, "days": s["days"],
+            "total": fmt_time(s["total_min"]),
+            "overtime": fmt_time(s["over_min"]) if s["over_min"] else "—",
+            "total_min": s["total_min"], "over_min": s["over_min"],
+            "year_total": year_total,
+            "remaining": remaining,
+            "pct": pct,
+        })
 
     staff_dict = defaultdict(list)
     for r in records:

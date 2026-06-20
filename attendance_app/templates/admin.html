@@ -47,7 +47,7 @@
     .card {
       background: rgba(255,255,255,0.75); border: 1px solid #c8a878;
       border-radius: 12px; padding: .85rem 1.1rem;
-      box-shadow: 0 2px 8px rgba(120,70,20,.1); min-width: 130px;
+      box-shadow: 0 2px 8px rgba(120,70,20,.1); min-width: 160px;
     }
     .card-name   { font-size: .85rem; color: #7a4010; margin-bottom: .3rem; }
     .card-total  { font-size: 1.2rem; color: #c87941; font-weight: bold; }
@@ -55,6 +55,12 @@
     .card-days   { font-size: .8rem; color: #9a6a3a; }
     .payslip-link { display: inline-block; margin-top: .4rem; font-size: .75rem;
       color: #c87941; text-decoration: none; border-bottom: 1px dashed #c87941; }
+    .fuyou-bar-wrap { margin-top: .6rem; background: #e8d5b5; border-radius: 6px; height: 6px; overflow: hidden; }
+    .fuyou-bar { height: 100%; border-radius: 6px; background: #c87941; transition: width .4s; }
+    .fuyou-bar.warn { background: #c05030; }
+    .fuyou-label { font-size: .72rem; color: #7a4010; margin-top: .25rem; }
+    .fuyou-remain { font-weight: bold; color: #3a7a3a; }
+    .fuyou-remain.over { color: #c03030; }
 
     h2 { font-size: .95rem; color: #7a4010; margin-bottom: .75rem;
          letter-spacing: .1em; font-weight: normal; }
@@ -145,6 +151,15 @@
       <div class="card-total">{{ s.total }}</div>
       {% if s.overtime != '—' %}<div class="card-over">残業 {{ s.overtime }}</div>{% endif %}
       <div class="card-days">{{ s.days }}日出勤</div>
+      <div class="fuyou-bar-wrap">
+        <div class="fuyou-bar {% if s.pct >= 90 %}warn{% endif %}" style="width:{{ s.pct }}%"></div>
+      </div>
+      <div class="fuyou-label">
+        年収 {{ "{:,}".format(s.year_total) }}円 &nbsp;/&nbsp; 103万円まで
+        <span class="fuyou-remain {% if s.remaining < 0 %}over{% endif %}">
+          {% if s.remaining >= 0 %}残り {{ "{:,}".format(s.remaining) }}円{% else %}超過 {{ "{:,}".format(-s.remaining) }}円{% endif %}
+        </span>
+      </div>
       <a class="payslip-link"
          href="/admin/payslip?name={{ s.name }}&from={{ date_from }}&to={{ date_to }}">
         給与明細を見る
