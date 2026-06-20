@@ -327,15 +327,13 @@ def admin():
         "total_min": s["total_min"], "over_min": s["over_min"]}
         for n, s in sorted(staff.items())]
 
-    days_dict = defaultdict(lambda: {"records": [], "total_min": 0})
+    staff_dict = defaultdict(list)
     for r in records:
-        days_dict[r["date"]]["records"].append(r)
-        days_dict[r["date"]]["total_min"] += r["work_min"]
-    days = [{"date": d, "records": info["records"], "total": fmt_time(info["total_min"])}
-            for d, info in sorted(days_dict.items())]
+        staff_dict[r["name"]].append(r)
+    staff_records = [{"name": n, "records": staff_dict[n]} for n in sorted(staff_dict)]
 
     return render_template("admin.html",
-        staff_summary=staff_summary, days=days,
+        staff_summary=staff_summary, staff_records=staff_records,
         date_from=date_from, date_to=date_to,
         period_label=pay_period_label(
             date.fromisoformat(date_from), date.fromisoformat(date_to)))

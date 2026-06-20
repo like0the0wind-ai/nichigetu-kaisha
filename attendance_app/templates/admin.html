@@ -125,17 +125,17 @@
   {% endif %}
 
   <h2>出退勤明細</h2>
-  {% if days %}
-    {% for day in days %}
-    <h2 style="margin-top:1rem">{{ day.date }} &nbsp;<small style="color:#9a6a3a;font-size:.8rem">計 {{ day.total }}</small></h2>
+  {% if staff_records %}
+    {% for s in staff_records %}
+    <h2 style="margin-top:1rem">{{ s.name }}</h2>
     <table style="margin-bottom:.75rem">
       <thead>
-        <tr><th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>残業</th><th colspan="2"></th></tr>
+        <tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>残業</th><th colspan="2"></th></tr>
       </thead>
       <tbody>
-        {% for r in day.records %}
+        {% for r in s.records %}
         <tr>
-          <td>{{ r.name }}</td>
+          <td>{{ r.date }}</td>
           <td>{{ r.clock_in }}</td>
           <td>{{ r.clock_out }}</td>
           <td>{{ r.break }}</td>
