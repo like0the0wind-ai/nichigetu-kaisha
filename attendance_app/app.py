@@ -339,8 +339,11 @@ def admin():
 
     staff_summary = []
     for n, s in sorted(staff.items()):
-        emp = query("SELECT * FROM employees WHERE name=?", (n,))
-        emp = emp[0] if emp else None
+        emp_rows = query("SELECT * FROM employees WHERE name=?", (n,))
+        emp = dict(emp_rows[0]) if emp_rows else None
+        if emp:
+            emp.setdefault("fuyou_target", 0)
+            emp.setdefault("other_income", 0)
         hourly = int(emp["hourly_rate"] or 0) if emp else 0
         transport = int(emp["transport_allowance"] or 0) if emp else 0
         other_income = int(emp["other_income"] or 0) if emp else 0
@@ -1144,7 +1147,10 @@ def admin_payroll():
     date_from = request.args.get("from", default_start.isoformat())
     date_to   = request.args.get("to",   default_end.isoformat())
 
-    employees = query("SELECT * FROM employees ORDER BY name")
+    employees = [dict(e) for e in query("SELECT * FROM employees ORDER BY name")]
+    for e in employees:
+        e.setdefault("fuyou_target", 0)
+        e.setdefault("other_income", 0)
     saved_slips = query(
         "SELECT * FROM payslips WHERE period_start=? AND period_end=? ORDER BY employee_name",
         (date_from, date_to)
