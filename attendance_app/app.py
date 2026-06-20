@@ -323,7 +323,7 @@ def admin():
     # 年間収入計算（扶養チェック用）
     year_start = date.fromisoformat(date_from).replace(month=1, day=1).isoformat()
     year_end   = date.fromisoformat(date_to).replace(month=12, day=31).isoformat()
-    FUYOU_LIMIT = 1_030_000  # 103万円
+    FUYOU_LIMIT = 1_360_000  # 136万円（2026年改正）
 
     staff_summary = []
     for n, s in sorted(staff.items()):

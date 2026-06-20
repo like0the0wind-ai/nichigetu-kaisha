@@ -155,7 +155,7 @@
         <div class="fuyou-bar {% if s.pct >= 90 %}warn{% endif %}" style="width:{{ s.pct }}%"></div>
       </div>
       <div class="fuyou-label">
-        年収 {{ "{:,}".format(s.year_total) }}円 &nbsp;/&nbsp; 103万円まで
+        年収 {{ "{:,}".format(s.year_total) }}円 &nbsp;/&nbsp; 136万円まで
         <span class="fuyou-remain {% if s.remaining < 0 %}over{% endif %}">
           {% if s.remaining >= 0 %}残り {{ "{:,}".format(s.remaining) }}円{% else %}超過 {{ "{:,}".format(-s.remaining) }}円{% endif %}
         </span>
