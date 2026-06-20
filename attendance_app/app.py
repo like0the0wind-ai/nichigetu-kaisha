@@ -113,6 +113,11 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+        try:
+            cur.execute("ALTER TABLE employees ADD COLUMN other_income INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+        except Exception:
+            pass
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS payslips (
                 id                   {serial} PRIMARY KEY {ai},
@@ -338,6 +343,7 @@ def admin():
         emp = emp[0] if emp else None
         hourly = int(emp["hourly_rate"] or 0) if emp else 0
         transport = int(emp["transport_allowance"] or 0) if emp else 0
+        other_income = int(emp["other_income"] or 0) if emp else 0
 
         # 年間レコード取得
         yr_rows = query(
@@ -357,6 +363,7 @@ def admin():
             pay  = int(hourly * reg / 60) + int(hourly * 1.25 * ov / 60) + transport
             year_total += pay
 
+        year_total += other_income
         remaining = FUYOU_LIMIT - year_total
         pct = min(100, int(year_total / FUYOU_LIMIT * 100))
 
@@ -369,6 +376,7 @@ def admin():
             "remaining": remaining,
             "pct": pct,
             "fuyou_target": int(emp["fuyou_target"]) if emp and emp["fuyou_target"] else 0,
+            "other_income": other_income,
         })
 
     staff_dict = defaultdict(list)
@@ -1173,20 +1181,21 @@ def admin_payroll():
 def admin_employee_save():
     emp_id    = request.form.get("id", "").strip()
     name      = request.form["name"].strip()
-    hourly    = int(request.form.get("hourly_rate", 0) or 0)
-    transport = int(request.form.get("transport_allowance", 0) or 0)
-    other     = int(request.form.get("other_allowance", 0) or 0)
-    notes     = request.form.get("notes", "").strip()
+    hourly       = int(request.form.get("hourly_rate", 0) or 0)
+    transport    = int(request.form.get("transport_allowance", 0) or 0)
+    other        = int(request.form.get("other_allowance", 0) or 0)
+    other_income = int(request.form.get("other_income", 0) or 0)
+    notes        = request.form.get("notes", "").strip()
 
     if emp_id:
         execute(
-            "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, notes=? WHERE id=?",
-            (name, hourly, transport, other, notes, emp_id)
+            "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, other_income=?, notes=? WHERE id=?",
+            (name, hourly, transport, other, other_income, notes, emp_id)
         )
     else:
         execute(
-            "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, notes) VALUES (?,?,?,?,?)",
-            (name, hourly, transport, other, notes)
+            "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, other_income, notes) VALUES (?,?,?,?,?,?)",
+            (name, hourly, transport, other, other_income, notes)
         )
     return redirect(url_for("admin_payroll"))
 
