@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>シフト編集 | シフト管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.85); border: 1px solid #c8a878;
+      border-radius: 16px; padding: 2rem; width: 360px; max-width: 100%;
+      box-shadow: 0 4px 20px rgba(120,70,20,.15);
+    }
+    h1 { font-size: 1.1rem; color: #7a4010; margin-bottom: .4rem; letter-spacing: .1em; }
+    .sub { font-size: .85rem; color: #9a7a5a; margin-bottom: 1.25rem; }
+    label { font-size: .82rem; color: #7a4010; display: block; margin-bottom: .2rem; }
+    input[type=time], input[type=text] {
+      width: 100%; padding: .65rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem;
+      font-family: inherit; margin-bottom: .85rem;
+    }
+    .btns { display: flex; gap: .5rem; margin-top: .25rem; }
+    .btn { flex: 1; padding: .7rem; border: none; border-radius: 8px;
+      cursor: pointer; font-family: inherit; font-size: .95rem; }
+    .btn-primary { background: #c87941; color: #fff; }
+    .btn-primary:hover { background: #a06030; }
+    .btn-cancel  { background: #e8d5b5; color: #7a5030; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+    .btn-cancel:hover { background: #c8a878; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✏️ シフトを編集</h1>
+    <div class="sub">
+      {{ shift.staff_name }} ／ {{ shift.shift_date }}
+    </div>
+    <form method="post">
+      <label>開始時間</label>
+      <input type="time" name="start_time" value="{{ shift.start_time }}" required>
+      <label>終了時間</label>
+      <input type="time" name="end_time" value="{{ shift.end_time }}" required>
+      <label>メモ（任意）</label>
+      <input type="text" name="memo" value="{{ shift.memo or '' }}" placeholder="例：遅番、早番">
+      <div class="btns">
+        <button type="submit" class="btn btn-primary">保存</button>
+        <a href="javascript:history.back()" class="btn btn-cancel">キャンセル</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

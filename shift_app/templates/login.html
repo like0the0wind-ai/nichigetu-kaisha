@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ログイン | シフト管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    }
+    .box {
+      background: rgba(255,255,255,0.85); border: 1px solid #c8a878;
+      border-radius: 18px; padding: 2.5rem 2rem; width: 320px;
+      box-shadow: 0 4px 20px rgba(120,70,20,.15); text-align: center;
+    }
+    h1 { font-size: 1.3rem; color: #7a4010; margin-bottom: .4rem; letter-spacing: .15em; }
+    p  { font-size: .82rem; color: #9a7a5a; margin-bottom: 1.5rem; }
+    input[type=password] {
+      width: 100%; padding: .75rem 1rem;
+      border: 1px solid #c8a878; border-radius: 10px;
+      background: #faf5ee; color: #3a2010; font-size: 1rem;
+      font-family: inherit; margin-bottom: 1rem;
+    }
+    button {
+      width: 100%; padding: .75rem; background: #c87941; color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem;
+      font-family: inherit; cursor: pointer;
+    }
+    button:hover { background: #a06030; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .5rem .75rem; margin-bottom: 1rem; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>📅 シフト管理</h1>
+    <p>管理者パスワードでログイン</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input type="password" name="password" placeholder="パスワード" autofocus required>
+      <button type="submit">ログイン</button>
+    </form>
+  </div>
+</body>
+</html>

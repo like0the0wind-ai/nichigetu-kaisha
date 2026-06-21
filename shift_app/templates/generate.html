@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>シフト自動生成 | シフト管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; border: 1px solid #c8a878; padding: .3rem .7rem; border-radius: 8px; }
+    .back:hover { background: #c87941; color: #fff; border-color: #c87941; }
+    .card {
+      background: rgba(255,255,255,0.82); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.5rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1); max-width: 680px;
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: 1rem; font-weight: normal; letter-spacing: .1em; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+    .field { flex: 1; min-width: 140px; }
+    .field label { font-size: .82rem; color: #7a4010; display: block; margin-bottom: .3rem; }
+    .field select, .field input[type=text] {
+      width: 100%; padding: .65rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    .hint { font-size: .75rem; color: #9a7a5a; margin-top: .25rem; }
+
+    .btn-generate {
+      width: 100%; padding: .85rem; background: #e87a20; color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem;
+      font-family: inherit; cursor: pointer; font-weight: bold;
+      letter-spacing: .05em; margin-top: .5rem;
+    }
+    .btn-generate:hover { background: #c05010; }
+
+    /* スタッフ確認テーブル */
+    .staff-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .staff-table th {
+      background: #c8a878; padding: .5rem .6rem; text-align: center;
+      font-weight: normal; color: #3a2010;
+    }
+    .staff-table td {
+      padding: .45rem .6rem; border: 1px solid #e8d5b5;
+      text-align: center; vertical-align: middle;
+    }
+    .staff-table tr:nth-child(even) td { background: #faf5ee; }
+    .ok   { color: #2a8a2a; font-weight: bold; }
+    .ng   { color: #aaa; }
+    .dot  { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: .3rem; }
+
+    .warn { background: #fff8e0; border: 1px solid #e8d060; border-radius: 8px; padding: .75rem 1rem; margin-bottom: 1rem; font-size: .85rem; color: #7a6010; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚙️ シフト自動生成</h1>
+    <a class="back" href="/">← カレンダーに戻る</a>
+  </header>
+
+  {% if not staff_rows %}
+  <div class="card">
+    <div class="warn">⚠️ スタッフが登録されていません。先に <a href="/staff" style="color:#c87941">スタッフ管理</a> でスタッフを追加・設定してください。</div>
+  </div>
+  {% else %}
+
+  <div class="card">
+    <h2>生成設定</h2>
+    {% if msg   %}<div class="msg">{{ msg }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+    <div class="warn">
+      ⚠️ 生成すると対象月の既存シフトはすべて上書きされます。手動で修正したシフトも削除されます。
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="action" value="generate">
+      <div class="row">
+        <div class="field">
+          <label>対象年</label>
+          <select name="year">
+            {% for y in range(today.year - 1, today.year + 3) %}
+            <option value="{{ y }}" {% if y == today.year %}selected{% endif %}>{{ y }}年</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>対象月</label>
+          <select name="month">
+            {% for m in range(1, 13) %}
+            <option value="{{ m }}" {% if m == today.month %}selected{% endif %}>{{ m }}月</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:1rem">
+        <label>マルシェ開催日（日付をカンマ区切り）</label>
+        <input type="text" name="marche_dates" placeholder="例: 7,14,21,28">
+        <p class="hint">日曜日の日付を入力 → M枠（マルシェ）を追加</p>
+      </div>
+      <button type="submit" class="btn-generate">🗓 シフトを自動生成する</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>スタッフ設定の確認</h2>
+    <div style="overflow-x:auto">
+    <table class="staff-table">
+      <thead>
+        <tr>
+          <th>名前</th>
+          <th>入れる枠</th>
+          <th>上限日数</th>
+          <th>火・水可</th>
+          <th>日曜可</th>
+          <th>日曜A専任</th>
+          <th>同日NG</th>
+          <th>休み希望日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in staff_rows %}
+        <tr>
+          <td>
+            <span class="dot" style="background:{{ s.color }}"></span>
+            {{ s.name }}
+          </td>
+          <td>{{ s.allowed_slots or '—' }}</td>
+          <td>{{ s.max_days or '—' }}</td>
+          <td class="{% if s.wed_ok %}ok{% else %}ng{% endif %}">{% if s.wed_ok %}✓{% else %}—{% endif %}</td>
+          <td class="{% if s.sun_ok %}ok{% else %}ng{% endif %}">{% if s.sun_ok %}✓{% else %}—{% endif %}</td>
+          <td class="{% if s.sun_a_exclusive %}ok{% else %}ng{% endif %}">{% if s.sun_a_exclusive %}✓{% else %}—{% endif %}</td>
+          <td>{{ s.same_day_ng or '—' }}</td>
+          <td style="font-size:.78rem">{{ s.days_off_str or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin-top:.75rem">
+      設定を変更するには <a href="/staff" style="color:#c87941">スタッフ管理</a> を更新してください
+    </p>
+  </div>
+  {% endif %}
+</body>
+</html>

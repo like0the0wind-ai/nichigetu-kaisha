@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>スタッフ管理 | シフト管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; border: 1px solid #c8a878; padding: .3rem .7rem; border-radius: 8px; }
+    .back:hover { background: #c87941; color: #fff; border-color: #c87941; }
+    .card {
+      background: rgba(255,255,255,0.8); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1);
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .9rem; font-weight: normal; letter-spacing: .1em; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+
+    /* 追加フォーム */
+    .add-form { display: flex; gap: .65rem; flex-wrap: wrap; align-items: flex-end; }
+    .add-form input[type=text] {
+      flex: 1; min-width: 180px; padding: .6rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    .btn { padding: .65rem 1.4rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .95rem; font-family: inherit; }
+    .btn:hover { background: #a06030; }
+
+    /* スタッフリスト */
+    .staff-card {
+      background: #faf5ee; border: 1px solid #e0cdb0;
+      border-radius: 12px; padding: 1rem; margin-bottom: .75rem;
+    }
+    .staff-header { display: flex; align-items: center; gap: .6rem; margin-bottom: .75rem; }
+    .staff-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+    .staff-name { font-size: 1rem; font-weight: bold; flex: 1; }
+    .btn-del { background: #e05050; padding: .4rem .9rem; font-size: .82rem; }
+    .btn-del:hover { background: #b03030; }
+    .btn-save { background: #4a90d9; padding: .4rem .9rem; font-size: .82rem; }
+    .btn-save:hover { background: #2a70b9; }
+
+    .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .65rem; }
+    .field label { font-size: .8rem; color: #7a4010; display: block; margin-bottom: .2rem; }
+    .field input[type=text], .field input[type=number], .field select {
+      width: 100%; padding: .5rem .75rem;
+      background: #fff; border: 1px solid #c8a878;
+      border-radius: 7px; color: #3a2010; font-size: .9rem; font-family: inherit;
+    }
+    .checkbox-row { display: flex; align-items: center; gap: .4rem; font-size: .88rem; padding: .4rem 0; }
+    .checkbox-row input[type=checkbox] { width: 16px; height: 16px; accent-color: #c87941; }
+    .hint { font-size: .75rem; color: #9a7a5a; margin-top: .2rem; }
+    .form-btns { display: flex; gap: .5rem; margin-top: .75rem; flex-wrap: wrap; }
+
+    /* 色プレビュー */
+    .color-preview { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: .3rem; }
+    .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform .15s; }
+    .color-dot:hover { transform: scale(1.2); }
+    .color-dot.selected { border-color: #3a2010; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>👤 スタッフ管理</h1>
+    <a class="back" href="/">← カレンダーに戻る</a>
+  </header>
+
+  <div class="card">
+    <h2>スタッフを追加</h2>
+    {% if msg   %}<div class="msg">{{ msg }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" class="add-form">
+      <input type="hidden" name="action" value="add">
+      <input type="text" name="name" placeholder="スタッフ名（例：山田）" required>
+      <button type="submit" class="btn">追加</button>
+    </form>
+    <p class="hint" style="margin-top:.5rem">追加後に下の詳細設定で枠・日数などを設定してください</p>
+  </div>
+
+  <div class="card">
+    <h2>登録済みスタッフ ({{ staff_rows | length }}名)</h2>
+    {% if staff_rows %}
+    {% for s in staff_rows %}
+    <div class="staff-card">
+      <div class="staff-header">
+        <span class="staff-dot" id="dot_{{ s.id }}" style="background:{{ s.color }}"></span>
+        <span class="staff-name">{{ s.name }}</span>
+        <form method="post" style="margin:0" onsubmit="return confirm('{{ s.name }} を削除しますか？')">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="staff_id" value="{{ s.id }}">
+          <button type="submit" class="btn btn-del">削除</button>
+        </form>
+      </div>
+      <form method="post">
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" name="staff_id" value="{{ s.id }}">
+        <input type="hidden" name="color" id="color_{{ s.id }}" value="{{ s.color }}">
+
+        <div class="fields">
+          <div class="field">
+            <label>入れる枠（カンマ区切り）</label>
+            <input type="text" name="allowed_slots" value="{{ s.allowed_slots or '' }}" placeholder="例: A,B,C">
+            <p class="hint">A=製造 B=レジ C=レジ補助 D=品出し</p>
+          </div>
+          <div class="field">
+            <label>月間出勤上限日数</label>
+            <input type="number" name="max_days" value="{{ s.max_days or 0 }}" min="0" max="31">
+          </div>
+          <div class="field">
+            <label>同日NG（カンマ区切り）</label>
+            <input type="text" name="same_day_ng" value="{{ s.same_day_ng or '' }}" placeholder="例: 山田,田中">
+            <p class="hint">同じ日に入れないスタッフ名</p>
+          </div>
+          <div class="field">
+            <label>休み希望日（カンマ区切り）</label>
+            <input type="text" name="days_off_str" value="{{ s.days_off_str or '' }}" placeholder="例: 3,12,25">
+            <p class="hint">日付の数字のみ（毎月更新）</p>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-top:.5rem">
+          <label class="checkbox-row">
+            <input type="checkbox" name="wed_ok" {% if s.wed_ok %}checked{% endif %}>
+            火・水曜可（仕込み）
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="sun_ok" {% if s.sun_ok %}checked{% endif %}>
+            日曜可
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="sun_a_exclusive" {% if s.sun_a_exclusive %}checked{% endif %}>
+            日曜A枠専任
+          </label>
+        </div>
+
+        <div style="margin-top:.6rem">
+          <label style="font-size:.8rem;color:#7a4010;display:block;margin-bottom:.3rem">表示カラー</label>
+          <div class="color-preview">
+            {% for c in colors %}
+            <span class="color-dot {% if c == s.color %}selected{% endif %}"
+              style="background:{{ c }}"
+              onclick="selectColor({{ s.id }}, '{{ c }}', this)"></span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="form-btns">
+          <button type="submit" class="btn btn-save">保存</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#9a7a5a;font-size:.9rem">まだスタッフが登録されていません</p>
+    {% endif %}
+  </div>
+
+  <script>
+    function selectColor(sid, color, el) {
+      document.getElementById("color_" + sid).value = color;
+      document.getElementById("dot_" + sid).style.background = color;
+      el.closest(".color-preview").querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
+      el.classList.add("selected");
+    }
+  </script>
+</body>
+</html>
