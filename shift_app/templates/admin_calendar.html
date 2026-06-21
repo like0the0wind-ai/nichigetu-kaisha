@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ month_name }} 管理 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .nav-links { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .nav-links a {
+      color: #9a6a3a; font-size: .78rem; text-decoration: none;
+      border: 1px solid #c8a878; padding: .3rem .65rem; border-radius: 8px;
+    }
+    .nav-links a:hover { background: #c87941; color: #fff; border-color: #c87941; }
+    .nav-links a.green { background: #2a8a2a; color: #fff; border-color: #2a8a2a; }
+    .nav-links a.green:hover { background: #1a6a1a; }
+
+    .month-nav { display: flex; align-items: center; gap: .75rem; justify-content: center; margin-bottom: .75rem; flex-wrap: wrap; }
+    .month-nav a { color: #c87941; text-decoration: none; border: 1px solid #c87941; padding: .3rem .8rem; border-radius: 8px; font-size: .88rem; }
+    .month-nav a:hover { background: #c87941; color: #fff; }
+    .month-label { font-size: 1rem; color: #7a4010; font-weight: bold; }
+
+    .card { background: rgba(255,255,255,0.82); border: 1px solid #c8a878; border-radius: 14px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 10px rgba(120,70,20,.1); overflow-x: auto; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+    .legend-item { display: flex; align-items: center; gap: .25rem; font-size: .75rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    .cal-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    .cal-table th { background: #c8a878; padding: .45rem .35rem; text-align: center; font-size: .78rem; font-weight: normal; color: #3a2010; }
+    .cal-table th.sat { color: #1a5a9a; }
+    .cal-table th.sun { color: #9a1a1a; }
+    .cal-table td { border: 1px solid #e0cdb0; vertical-align: top; height: 80px; padding: .25rem; width: calc(100%/7); }
+    .cal-table td.today-cell { background: #fff5e0; }
+    .day-num { font-size: .75rem; font-weight: bold; margin-bottom: .2rem; display: flex; align-items: center; justify-content: space-between; }
+    .day-num.sat { color: #1a5a9a; } .day-num.sun { color: #9a1a1a; } .day-num.today-num { color: #c87941; }
+    .add-btn { font-size: .6rem; background: #e8d5b5; border: none; border-radius: 4px; padding: .1rem .3rem; cursor: pointer; color: #7a5030; }
+    .add-btn:hover { background: #c87941; color: #fff; }
+
+    .shift-chip { display: flex; align-items: center; justify-content: space-between; border-radius: 4px; padding: .1rem .3rem; font-size: .65rem; margin-bottom: .1rem; color: #fff; gap: .15rem; cursor: pointer; }
+    .shift-chip:hover { opacity: .85; }
+    .chip-info { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .chip-del { background: none; border: none; color: #fff; cursor: pointer; font-size: .65rem; padding: 0; opacity: .8; flex-shrink: 0; }
+    .chip-del:hover { opacity: 1; }
+
+    /* モーダル */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+    .modal-bg.active { display: flex; }
+    .modal { background: #faf5ee; border: 1px solid #c8a878; border-radius: 16px; padding: 1.5rem; width: 320px; max-width: 95vw; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+    .modal h2 { font-size: .95rem; color: #7a4010; margin-bottom: .9rem; }
+    .modal label { font-size: .8rem; color: #7a4010; display: block; margin-bottom: .2rem; }
+    .modal select, .modal input[type=time], .modal input[type=text] {
+      width: 100%; padding: .55rem .8rem; background: #fff; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .9rem; font-family: inherit; margin-bottom: .7rem;
+    }
+    .modal-btns { display: flex; gap: .5rem; margin-top: .25rem; }
+    .btn { padding: .6rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: .88rem; }
+    .btn-primary { background: #c87941; color: #fff; }
+    .btn-primary:hover { background: #a06030; }
+    .btn-cancel { background: #e8d5b5; color: #7a5030; }
+    .btn-cancel:hover { background: #c8a878; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✏️ シフト管理（管理者）</h1>
+    <div class="nav-links">
+      <a href="/generate">⚙️ 自動生成</a>
+      <a href="/staff">👤 スタッフ</a>
+      <a href="/export/excel/{{ year }}/{{ month }}" class="green">📥 Excel</a>
+      <a href="/">← 公開画面</a>
+      <a href="/logout" style="color:#e05050;border-color:#e05050">ログアウト</a>
+    </div>
+  </header>
+
+  <div class="month-nav">
+    <a href="/admin?year={{ prev_year }}&month={{ prev_month }}">◀ 前月</a>
+    <span class="month-label">{{ month_name }}</span>
+    <a href="/admin?year={{ next_year }}&month={{ next_month }}">次月 ▶</a>
+    <a href="/admin?year={{ today.year }}&month={{ today.month }}" style="font-size:.78rem">今月</a>
+  </div>
+
+  {% if staff_rows %}
+  <div class="legend">
+    {% for s in staff_rows %}
+    <div class="legend-item">
+      <span class="legend-dot" style="background:{{ s.color }}"></span>
+      <span>{{ s.name }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <table class="cal-table">
+      <thead>
+        <tr>
+          <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th>
+          <th class="sat">土</th><th class="sun">日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in cal %}
+        <tr>
+          {% for day in week %}
+          {% if day == 0 %}
+            <td></td>
+          {% else %}
+            {% set d = "%04d-%02d-%02d"|format(year, month, day) %}
+            {% set col = loop.index0 %}
+            {% set is_today = (year == today.year and month == today.month and day == today.day) %}
+            <td class="{% if is_today %}today-cell{% endif %}">
+              <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">
+                <span>{{ day }}</span>
+                {% if staff_rows %}<button class="add-btn" onclick="openAdd('{{ d }}', {{ day }})">＋</button>{% endif %}
+              </div>
+              {% for sh in shift_map.get(d, []) %}
+              <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}')">
+                <span class="chip-info">{{ sh.staff_name }} {{ sh.slot_label }}</span>
+                <form method="post" action="/shift/delete/{{ sh.id }}" style="display:inline" onsubmit="event.stopPropagation();return confirm('削除？')">
+                  <button class="chip-del" type="submit" onclick="event.stopPropagation()">✕</button>
+                </form>
+              </div>
+              {% endfor %}
+            </td>
+          {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not staff_rows %}
+  <p style="text-align:center;color:#9a7a5a;font-size:.88rem"><a href="/staff" style="color:#c87941">スタッフを先に登録してください →</a></p>
+  {% endif %}
+
+  <!-- 追加モーダル -->
+  <div class="modal-bg" id="addModal">
+    <div class="modal">
+      <h2>シフトを追加</h2>
+      <form method="post" action="/shift/add">
+        <input type="hidden" name="shift_date" id="addDate">
+        <div id="addLabel" style="font-size:.88rem;color:#7a4010;margin-bottom:.7rem;font-weight:bold"></div>
+        <label>スタッフ</label>
+        <select name="staff_id" required>
+          {% for s in staff_rows %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <label>開始</label>
+        <input type="time" name="start_time" value="09:00" required>
+        <label>終了</label>
+        <input type="time" name="end_time" value="17:00" required>
+        <label>メモ</label>
+        <input type="text" name="memo" placeholder="例：A枠、仕込み">
+        <div class="modal-btns">
+          <button type="submit" class="btn btn-primary">追加</button>
+          <button type="button" class="btn btn-cancel" onclick="closeModal('addModal')">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 編集モーダル -->
+  <div class="modal-bg" id="editModal">
+    <div class="modal">
+      <h2>シフトを編集</h2>
+      <form method="post" id="editForm">
+        <div id="editLabel" style="font-size:.88rem;color:#7a4010;margin-bottom:.7rem;font-weight:bold"></div>
+        <label>開始</label>
+        <input type="time" name="start_time" id="editStart" required>
+        <label>終了</label>
+        <input type="time" name="end_time" id="editEnd" required>
+        <label>メモ</label>
+        <input type="text" name="memo" id="editMemo">
+        <div class="modal-btns">
+          <button type="submit" class="btn btn-primary">保存</button>
+          <button type="button" class="btn btn-cancel" onclick="closeModal('editModal')">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openAdd(d, day) {
+      document.getElementById('addDate').value = d;
+      document.getElementById('addLabel').textContent = d;
+      document.getElementById('addModal').classList.add('active');
+    }
+    function openEdit(id, name, start, end, memo) {
+      document.getElementById('editForm').action = '/shift/edit/' + id;
+      document.getElementById('editLabel').textContent = name;
+      document.getElementById('editStart').value = start;
+      document.getElementById('editEnd').value = end;
+      document.getElementById('editMemo').value = memo;
+      document.getElementById('editModal').classList.add('active');
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    document.querySelectorAll('.modal-bg').forEach(bg => {
+      bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('active'); });
+    });
+  </script>
+</body>
+</html>

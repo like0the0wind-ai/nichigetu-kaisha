@@ -150,7 +150,7 @@ def login():
     if request.method == "POST":
         if request.form.get("password") == ADMIN_PASSWORD:
             session["admin"] = True
-            return redirect(url_for("index"))
+            return redirect(url_for("admin"))
         error = "パスワードが違います"
     return render_template("login.html", error=error)
 
@@ -158,98 +158,27 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    return redirect(url_for("admin"))
 
 
 def require_login():
     if not session.get("admin"):
-        return redirect(url_for("login"))
+        return redirect(url_for("admin"))
     return None
 
 
-# ── シフト希望（公開） ────────────────────────────────────────────────
+# ── 公開トップページ（カレンダー＋希望提出＋ログイン） ──────────────
 
-@app.route("/request", methods=["GET", "POST"])
-def shift_request():
-    today = today_jst()
-    # 対象月（今月・来月）
-    months = []
-    for delta in range(0, 3):
-        m = date(today.year, today.month, 1)
-        if today.month + delta <= 12:
-            months.append(date(today.year, today.month + delta, 1))
-        else:
-            months.append(date(today.year + 1, (today.month + delta) - 12, 1))
-
-    staff_rows = query("SELECT name FROM shift_staff ORDER BY id")
-    msg = error = None
-
-    if request.method == "POST":
-        staff_name = request.form.get("staff_name", "").strip()
-        month_str  = request.form.get("month", "").strip()  # YYYY-MM
-        days_off   = sorted(set(request.form.getlist("days_off")))
-        days_off_str = ",".join(days_off)
-
-        if not staff_name or not month_str:
-            error = "名前と対象月を選択してください"
-        else:
-            existing = query(
-                "SELECT id FROM shift_requests WHERE staff_name=? AND month=?",
-                (staff_name, month_str)
-            )
-            if existing:
-                execute(
-                    "UPDATE shift_requests SET days_off_str=?, submitted_at=? WHERE staff_name=? AND month=?",
-                    (days_off_str, now_jst(), staff_name, month_str)
-                )
-            else:
-                execute(
-                    "INSERT INTO shift_requests (staff_name, month, days_off_str, submitted_at) VALUES (?,?,?,?)",
-                    (staff_name, month_str, days_off_str, now_jst())
-                )
-            # shift_staff の days_off_str も更新
-            execute(
-                "UPDATE shift_staff SET days_off_str=? WHERE name=?",
-                (days_off_str, staff_name)
-            )
-            msg = f"{staff_name} さんの {month_str} の希望を受け付けました"
-
-    # 選択月のカレンダー用
-    sel_month_str = request.args.get("month", months[0].strftime("%Y-%m"))
-    try:
-        sel_year, sel_month = map(int, sel_month_str.split("-"))
-    except Exception:
-        sel_year, sel_month = today.year, today.month
-    days_in_month = calendar.monthrange(sel_year, sel_month)[1]
-
-    return render_template(
-        "request.html",
-        staff_rows=staff_rows,
-        months=months,
-        sel_month_str=sel_month_str,
-        sel_year=sel_year, sel_month=sel_month,
-        days_in_month=days_in_month,
-        today=today,
-        msg=msg, error=error,
-    )
-
-
-# ── Index (月次カレンダー) ──────────────────────────────────────────
-
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    r = require_login()
-    if r:
-        return r
-
     today = today_jst()
     year  = int(request.args.get("year",  today.year))
     month = int(request.args.get("month", today.month))
 
+    # ── カレンダーデータ ──
     first_day = date(year, month, 1)
     last_day  = date(year, month, calendar.monthrange(year, month)[1])
     cal       = calendar.monthcalendar(year, month)
-
     staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     shifts_raw = query(
         "SELECT s.*, st.name as staff_name, st.color FROM shift_records s "
@@ -257,7 +186,6 @@ def index():
         "WHERE s.shift_date BETWEEN ? AND ?",
         (first_day.isoformat(), last_day.isoformat())
     )
-
     shift_map = {}
     for sh in shifts_raw:
         shift_map.setdefault(sh["shift_date"], []).append(sh)
@@ -271,12 +199,118 @@ def index():
     else:
         next_year, next_month = year, month + 1
 
+    # ── シフト希望提出 ──
+    months = []
+    for delta in range(0, 3):
+        if today.month + delta <= 12:
+            months.append(date(today.year, today.month + delta, 1))
+        else:
+            months.append(date(today.year + 1, (today.month + delta) - 12, 1))
+
+    sel_month_str = request.args.get("req_month", months[0].strftime("%Y-%m"))
+    try:
+        sel_year, sel_month = map(int, sel_month_str.split("-"))
+    except Exception:
+        sel_year, sel_month = today.year, today.month
+    days_in_month_req = calendar.monthrange(sel_year, sel_month)[1]
+
+    req_msg = req_error = None
+    login_error = None
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        # シフト希望送信
+        if action == "request":
+            staff_name   = request.form.get("staff_name", "").strip()
+            month_str    = request.form.get("req_month_val", "").strip()
+            days_off     = sorted(set(request.form.getlist("days_off")), key=int)
+            days_off_str = ",".join(days_off)
+            if not staff_name or not month_str:
+                req_error = "名前と対象月を選択してください"
+            else:
+                existing = query(
+                    "SELECT id FROM shift_requests WHERE staff_name=? AND month=?",
+                    (staff_name, month_str)
+                )
+                if existing:
+                    execute(
+                        "UPDATE shift_requests SET days_off_str=?, submitted_at=? WHERE staff_name=? AND month=?",
+                        (days_off_str, now_jst(), staff_name, month_str)
+                    )
+                else:
+                    execute(
+                        "INSERT INTO shift_requests (staff_name, month, days_off_str, submitted_at) VALUES (?,?,?,?)",
+                        (staff_name, month_str, days_off_str, now_jst())
+                    )
+                execute(
+                    "UPDATE shift_staff SET days_off_str=? WHERE name=?",
+                    (days_off_str, staff_name)
+                )
+                req_msg = f"{staff_name} さんの {month_str} の希望を受け付けました ✅"
+
+        # 管理者ログイン
+        elif action == "login":
+            if request.form.get("password") == ADMIN_PASSWORD:
+                session["admin"] = True
+                return redirect(url_for("admin"))
+            else:
+                login_error = "パスワードが違います"
+
     return render_template(
         "index.html",
-        year=year, month=month,
-        cal=cal,
-        shift_map=shift_map,
-        staff_rows=staff_rows,
+        # カレンダー
+        year=year, month=month, cal=cal,
+        shift_map=shift_map, staff_rows=staff_rows,
+        today=today,
+        prev_year=prev_year, prev_month=prev_month,
+        next_year=next_year, next_month=next_month,
+        month_name=f"{year}年{month}月",
+        # 希望提出
+        months=months, sel_month_str=sel_month_str,
+        sel_year=sel_year, sel_month=sel_month,
+        days_in_month_req=days_in_month_req,
+        req_msg=req_msg, req_error=req_error,
+        # ログイン
+        login_error=login_error,
+        is_admin=session.get("admin", False),
+    )
+
+
+# ── 管理者画面 ────────────────────────────────────────────────────────
+
+@app.route("/admin")
+def admin():
+    if not session.get("admin"):
+        return redirect(url_for("admin"))
+    today = today_jst()
+    year  = int(request.args.get("year",  today.year))
+    month = int(request.args.get("month", today.month))
+    first_day = date(year, month, 1)
+    last_day  = date(year, month, calendar.monthrange(year, month)[1])
+    cal       = calendar.monthcalendar(year, month)
+    staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
+    shifts_raw = query(
+        "SELECT s.*, st.name as staff_name, st.color FROM shift_records s "
+        "JOIN shift_staff st ON s.staff_id = st.id "
+        "WHERE s.shift_date BETWEEN ? AND ?",
+        (first_day.isoformat(), last_day.isoformat())
+    )
+    shift_map = {}
+    for sh in shifts_raw:
+        shift_map.setdefault(sh["shift_date"], []).append(sh)
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, month - 1
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+    return render_template(
+        "admin_calendar.html",
+        year=year, month=month, cal=cal,
+        shift_map=shift_map, staff_rows=staff_rows,
         today=today,
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
@@ -307,7 +341,7 @@ def shift_add():
     )
 
     d = date.fromisoformat(shift_date)
-    return redirect(url_for("index", year=d.year, month=d.month))
+    return redirect(url_for("admin", year=d.year, month=d.month))
 
 
 # ── シフト削除 ────────────────────────────────────────────────────────
@@ -323,8 +357,8 @@ def shift_delete(shift_id):
 
     if row:
         d = date.fromisoformat(row[0]["shift_date"])
-        return redirect(url_for("index", year=d.year, month=d.month))
-    return redirect(url_for("index"))
+        return redirect(url_for("admin", year=d.year, month=d.month))
+    return redirect(url_for("admin"))
 
 
 # ── シフト編集 ────────────────────────────────────────────────────────
@@ -346,8 +380,8 @@ def shift_edit(shift_id):
         row = query("SELECT shift_date FROM shift_records WHERE id=?", (shift_id,))
         if row:
             d = date.fromisoformat(row[0]["shift_date"])
-            return redirect(url_for("index", year=d.year, month=d.month))
-        return redirect(url_for("index"))
+            return redirect(url_for("admin", year=d.year, month=d.month))
+        return redirect(url_for("admin"))
 
     shift = query(
         "SELECT s.*, st.name as staff_name FROM shift_records s "
@@ -355,7 +389,7 @@ def shift_edit(shift_id):
         (shift_id,)
     )
     if not shift:
-        return redirect(url_for("index"))
+        return redirect(url_for("admin"))
     staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     return render_template("edit_shift.html", shift=shift[0], staff_rows=staff_rows)
 
@@ -507,7 +541,7 @@ def generate():
                         )
 
                 msg = f"{year}年{month}月のシフトを生成しました（{len(assignments)}件）"
-                return redirect(url_for("index", year=year, month=month))
+                return redirect(url_for("admin", year=year, month=month))
 
     staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     # 直近3ヶ月の提出済み希望を表示

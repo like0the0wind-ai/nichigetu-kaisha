@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ month_name }} シフト | ニチゲツ</title>
+  <title>シフト管理 | ニチゲツ</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -12,140 +12,140 @@
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
       color: #3a2010; padding: 1rem;
     }
-    header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+    h1 { font-size: 1.15rem; letter-spacing: .15em; color: #7a4010; text-align: center; margin-bottom: 1rem; }
+    .section-title {
+      font-size: .95rem; color: #7a4010; font-weight: normal;
+      letter-spacing: .1em; margin-bottom: .75rem;
     }
-    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
-    .nav-links { display: flex; gap: .6rem; align-items: center; }
-    .nav-links a {
-      color: #9a6a3a; font-size: .8rem; text-decoration: none;
-      border: 1px solid #c8a878; padding: .3rem .7rem; border-radius: 8px;
+    .card {
+      background: rgba(255,255,255,0.82); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1);
     }
-    .nav-links a:hover { background: #c87941; color: #fff; border-color: #c87941; }
 
-    /* 月ナビ */
+    /* ── 月ナビ ── */
     .month-nav {
-      display: flex; align-items: center; gap: 1rem;
-      justify-content: center; margin-bottom: 1rem; flex-wrap: wrap;
+      display: flex; align-items: center; gap: .75rem;
+      justify-content: center; margin-bottom: .75rem; flex-wrap: wrap;
     }
     .month-nav a {
       color: #c87941; text-decoration: none; border: 1px solid #c87941;
-      padding: .35rem .9rem; border-radius: 8px; font-size: .9rem;
+      padding: .3rem .8rem; border-radius: 8px; font-size: .88rem;
     }
     .month-nav a:hover { background: #c87941; color: #fff; }
-    .month-label { font-size: 1.1rem; color: #7a4010; font-weight: bold; letter-spacing: .1em; }
+    .month-label { font-size: 1rem; color: #7a4010; font-weight: bold; }
 
-    /* カレンダーカード */
-    .card {
-      background: rgba(255,255,255,0.8); border: 1px solid #c8a878;
-      border-radius: 14px; padding: 1rem; margin-bottom: 1rem;
-      box-shadow: 0 2px 10px rgba(120,70,20,.1); overflow-x: auto;
-    }
-
-    /* カレンダー本体 */
-    .cal-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    /* ── カレンダー（閲覧用） ── */
+    .cal-wrap { overflow-x: auto; }
+    .cal-table { width: 100%; border-collapse: collapse; min-width: 320px; }
     .cal-table th {
-      background: #c8a878; padding: .5rem .4rem; text-align: center;
-      font-size: .82rem; font-weight: normal; color: #3a2010;
+      background: #c8a878; padding: .4rem .3rem; text-align: center;
+      font-size: .78rem; font-weight: normal; color: #3a2010;
     }
     .cal-table th.sat { color: #1a5a9a; }
     .cal-table th.sun { color: #9a1a1a; }
     .cal-table td {
       border: 1px solid #e0cdb0; vertical-align: top;
-      height: 90px; padding: .3rem; width: calc(100% / 7);
+      min-height: 60px; padding: .25rem; width: calc(100%/7);
     }
-    .cal-table td.other-month { background: #f5ede0; opacity: .5; }
-    .cal-table td.today { background: #fff5e0; }
+    .cal-table td.today-cell { background: #fff5e0; }
     .day-num {
-      font-size: .8rem; font-weight: bold; margin-bottom: .25rem;
-      display: flex; align-items: center; justify-content: space-between;
+      font-size: .75rem; font-weight: bold; margin-bottom: .2rem;
     }
     .day-num.sat { color: #1a5a9a; }
     .day-num.sun { color: #9a1a1a; }
     .day-num.today-num { color: #c87941; }
-    .add-btn {
-      font-size: .65rem; background: #e8d5b5; border: none; border-radius: 4px;
-      padding: .1rem .35rem; cursor: pointer; color: #7a5030;
-    }
-    .add-btn:hover { background: #c87941; color: #fff; }
-
-    /* シフトチップ */
     .shift-chip {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #c87941; color: #fff; border-radius: 5px;
-      padding: .15rem .35rem; font-size: .7rem; margin-bottom: .15rem;
-      gap: .2rem; cursor: pointer;
+      display: block; border-radius: 4px;
+      padding: .1rem .3rem; font-size: .65rem; margin-bottom: .1rem;
+      color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .shift-chip:hover { opacity: .85; }
-    .chip-name { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px; }
-    .chip-time { white-space: nowrap; font-size: .65rem; opacity: .9; }
-    .chip-del  { background: none; border: none; color: #fff; cursor: pointer; font-size: .7rem; padding: 0 .15rem; opacity: .8; flex-shrink: 0; }
-    .chip-del:hover { opacity: 1; }
+    .legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+    .legend-item { display: flex; align-items: center; gap: .25rem; font-size: .75rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-    /* モーダル */
-    .modal-bg {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.4); z-index: 100;
-      align-items: center; justify-content: center;
+    /* ── シフト希望 ── */
+    .month-tabs { display: flex; gap: .4rem; margin-bottom: .75rem; flex-wrap: wrap; }
+    .month-tab {
+      padding: .35rem .8rem; border: 1px solid #c8a878; border-radius: 8px;
+      font-size: .82rem; color: #9a6a3a; text-decoration: none; background: #faf5ee;
     }
-    .modal-bg.active { display: flex; }
-    .modal {
+    .month-tab.active { background: #c87941; color: #fff; border-color: #c87941; }
+    select {
+      width: 100%; padding: .6rem .8rem; margin-bottom: .75rem;
       background: #faf5ee; border: 1px solid #c8a878;
-      border-radius: 16px; padding: 1.5rem; width: 340px; max-width: 95vw;
-      box-shadow: 0 8px 30px rgba(0,0,0,.2);
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
     }
-    .modal h2 { font-size: 1rem; color: #7a4010; margin-bottom: 1rem; }
-    .modal label { font-size: .82rem; color: #7a4010; display: block; margin-bottom: .2rem; }
-    .modal select, .modal input[type=time], .modal input[type=text] {
-      width: 100%; padding: .6rem .9rem; background: #fff;
-      border: 1px solid #c8a878; border-radius: 8px;
-      color: #3a2010; font-size: .95rem; font-family: inherit;
-      margin-bottom: .75rem;
+    .req-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: .6rem;
     }
-    .modal-btns { display: flex; gap: .5rem; margin-top: .5rem; }
-    .btn { padding: .6rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: .9rem; }
-    .btn-primary { background: #c87941; color: #fff; }
-    .btn-primary:hover { background: #a06030; }
-    .btn-cancel  { background: #e8d5b5; color: #7a5030; }
-    .btn-cancel:hover { background: #c8a878; }
+    .req-head { text-align: center; font-size: .72rem; color: #9a7a5a; padding: .15rem 0; }
+    .req-head.sat { color: #2a6aaa; } .req-head.sun { color: #aa2a2a; }
+    .day-cb { position: relative; }
+    .day-cb input[type=checkbox] { display: none; }
+    .day-cb label {
+      display: flex; align-items: center; justify-content: center;
+      height: 36px; border-radius: 6px; font-size: .85rem;
+      border: 1px solid #e0cdb0; background: #faf5ee; cursor: pointer;
+      color: #3a2010; margin: 0;
+    }
+    .day-cb.sat label { color: #2a6aaa; }
+    .day-cb.sun label { color: #aa2a2a; }
+    .day-cb input:checked + label { background: #c87941; color: #fff; border-color: #c87941; font-weight: bold; }
+    .day-cb.empty label { background: transparent; border-color: transparent; cursor: default; }
+    .selected-info { font-size: .82rem; color: #7a4010; min-height: 1.2rem; margin-bottom: .6rem; }
+    .hint { font-size: .75rem; color: #9a7a5a; margin-bottom: .5rem; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .6rem .9rem; margin-bottom: .6rem; font-size: .88rem; }
+    .error-box { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .6rem .9rem; margin-bottom: .6rem; font-size: .88rem; }
 
-    /* 凡例 */
-    .legend { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; align-items: center; }
-    .legend-item { display: flex; align-items: center; gap: .3rem; font-size: .8rem; }
-    .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    /* ── ボタン ── */
+    .btn {
+      width: 100%; padding: .75rem; background: #c87941; color: #fff;
+      border: none; border-radius: 10px; font-size: .95rem;
+      font-family: inherit; cursor: pointer; font-weight: bold;
+    }
+    .btn:hover { background: #a06030; }
+    .btn-sub { background: #6ab04c; }
+    .btn-sub:hover { background: #4a9030; }
+
+    /* ── 管理者ログイン ── */
+    .login-area { text-align: center; }
+    .login-area p { font-size: .82rem; color: #9a7a5a; margin-bottom: .75rem; }
+    .login-row { display: flex; gap: .5rem; }
+    .login-row input[type=password] {
+      flex: 1; padding: .65rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+    .btn-login { width: auto; padding: .65rem 1.2rem; background: #7a4010; }
+    .btn-login:hover { background: #5a2a00; }
+    .admin-link { display: block; text-align: center; margin-top: .5rem; font-size: .78rem; color: #9a7a5a; text-decoration: none; }
+    .admin-link:hover { color: #c87941; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>📅 シフト管理</h1>
-    <div class="nav-links">
-      <a href="/generate">⚙️ 自動生成</a>
-      <a href="/staff">👤 スタッフ管理</a>
-      <a href="/export/excel/{{ year }}/{{ month }}" style="background:#2a8a2a;color:#fff;border-color:#2a8a2a">📥 Excel出力</a>
-      <a href="/logout">ログアウト</a>
-    </div>
-  </header>
 
-  <div class="month-nav">
-    <a href="/?year={{ prev_year }}&month={{ prev_month }}">◀ 前月</a>
-    <span class="month-label">{{ month_name }}</span>
-    <a href="/?year={{ next_year }}&month={{ next_month }}">次月 ▶</a>
-    <a href="/?year={{ today.year }}&month={{ today.month }}" style="font-size:.8rem">今月</a>
-  </div>
+  <h1>📅 ニチゲツ シフト</h1>
 
-  {% if staff_rows %}
-  <div class="legend">
-    {% for s in staff_rows %}
-    <div class="legend-item">
-      <span class="legend-dot" style="background:{{ s.color }}"></span>
-      <span>{{ s.name }}</span>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
+  <!-- ① シフトカレンダー -->
   <div class="card">
+    <div class="month-nav">
+      <a href="/?year={{ prev_year }}&month={{ prev_month }}">◀</a>
+      <span class="month-label">{{ month_name }}</span>
+      <a href="/?year={{ next_year }}&month={{ next_month }}">▶</a>
+      <a href="/?year={{ today.year }}&month={{ today.month }}" style="font-size:.75rem">今月</a>
+    </div>
+    {% if staff_rows %}
+    <div class="legend">
+      {% for s in staff_rows %}
+      <div class="legend-item">
+        <span class="legend-dot" style="background:{{ s.color }}"></span>
+        <span>{{ s.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="cal-wrap">
     <table class="cal-table">
       <thead>
         <tr>
@@ -158,28 +158,17 @@
         <tr>
           {% for day in week %}
           {% if day == 0 %}
-            <td class="other-month"></td>
+            <td></td>
           {% else %}
             {% set d = "%04d-%02d-%02d"|format(year, month, day) %}
-            {% set dow = namespace(val=0) %}
-            {# weekday: 0=月...5=土,6=日 → cal週は月始まり #}
             {% set col = loop.index0 %}
             {% set is_today = (year == today.year and month == today.month and day == today.day) %}
-            <td class="{% if is_today %}today{% endif %}">
-              <div class="day-num {% if col == 5 %}sat{% elif col == 6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">
-                <span>{{ day }}</span>
-                {% if staff_rows %}
-                <button class="add-btn" onclick="openAddModal('{{ d }}')">＋</button>
-                {% endif %}
-              </div>
+            <td class="{% if is_today %}today-cell{% endif %}">
+              <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">{{ day }}</div>
               {% for sh in shift_map.get(d, []) %}
-              <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEditModal({{ sh.id }}, '{{ sh.staff_name }}', '{{ sh.start_time }}', '{{ sh.end_time }}', '{{ sh.memo }}')">
-                <span class="chip-name">{{ sh.staff_name }}</span>
-                <span class="chip-time">{{ sh.start_time[:5] }}〜{{ sh.end_time[:5] }}</span>
-                <form method="post" action="/shift/delete/{{ sh.id }}" style="display:inline" onsubmit="event.stopPropagation(); return confirm('削除しますか？')">
-                  <button class="chip-del" type="submit" onclick="event.stopPropagation()">✕</button>
-                </form>
-              </div>
+              <span class="shift-chip" style="background:{{ sh.color }}">
+                {{ sh.staff_name }} {{ sh.slot_label }}
+              </span>
               {% endfor %}
             </td>
           {% endif %}
@@ -188,83 +177,100 @@
         {% endfor %}
       </tbody>
     </table>
-  </div>
-
-  {% if not staff_rows %}
-  <div style="text-align:center;color:#9a7a5a;padding:2rem;font-size:.9rem">
-    <a href="/staff" style="color:#c87941">スタッフを先に登録してください →</a>
-  </div>
-  {% endif %}
-
-  <!-- シフト追加モーダル -->
-  <div class="modal-bg" id="addModal">
-    <div class="modal">
-      <h2>シフトを追加</h2>
-      <form method="post" action="/shift/add">
-        <input type="hidden" name="shift_date" id="addDate">
-        <div id="addDateLabel" style="font-size:.9rem;color:#7a4010;margin-bottom:.75rem;font-weight:bold"></div>
-        <label>スタッフ</label>
-        <select name="staff_id" required>
-          {% for s in staff_rows %}
-          <option value="{{ s.id }}">{{ s.name }}</option>
-          {% endfor %}
-        </select>
-        <label>開始時間</label>
-        <input type="time" name="start_time" value="09:00" required>
-        <label>終了時間</label>
-        <input type="time" name="end_time" value="17:00" required>
-        <label>メモ（任意）</label>
-        <input type="text" name="memo" placeholder="例：遅番、早番">
-        <div class="modal-btns">
-          <button type="submit" class="btn btn-primary">追加</button>
-          <button type="button" class="btn btn-cancel" onclick="closeModal('addModal')">キャンセル</button>
-        </div>
-      </form>
     </div>
+    {% if is_admin %}
+    <div style="text-align:center;margin-top:.75rem">
+      <a href="/admin?year={{ year }}&month={{ month }}" style="color:#c87941;font-size:.82rem">✏️ 管理者モードで編集 →</a>
+    </div>
+    {% endif %}
   </div>
 
-  <!-- シフト編集モーダル -->
-  <div class="modal-bg" id="editModal">
-    <div class="modal">
-      <h2>シフトを編集</h2>
-      <form method="post" id="editForm">
-        <div id="editStaffLabel" style="font-size:.9rem;color:#7a4010;margin-bottom:.75rem;font-weight:bold"></div>
-        <label>開始時間</label>
-        <input type="time" name="start_time" id="editStart" required>
-        <label>終了時間</label>
-        <input type="time" name="end_time" id="editEnd" required>
-        <label>メモ（任意）</label>
-        <input type="text" name="memo" id="editMemo">
-        <div class="modal-btns">
-          <button type="submit" class="btn btn-primary">保存</button>
-          <button type="button" class="btn btn-cancel" onclick="closeModal('editModal')">キャンセル</button>
+  <!-- ② シフト希望 -->
+  <div class="card">
+    <h2 class="section-title">📝 シフト希望を出す</h2>
+    {% if req_msg %}<div class="msg">{{ req_msg }}</div>{% endif %}
+    {% if req_error %}<div class="error-box">{{ req_error }}</div>{% endif %}
+    {% if staff_rows %}
+    <form method="post">
+      <input type="hidden" name="action" value="request">
+      <input type="hidden" name="req_month_val" id="reqMonthVal" value="{{ sel_month_str }}">
+
+      <select name="staff_name" required>
+        <option value="">— 名前を選択 —</option>
+        {% for s in staff_rows %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="month-tabs">
+        {% for m in months %}
+        {% set ms = m.strftime('%Y-%m') %}
+        <a href="/?req_month={{ ms }}#request" class="month-tab {% if ms == sel_month_str %}active{% endif %}"
+           onclick="document.getElementById('reqMonthVal').value='{{ ms }}'">
+          {{ m.year }}年{{ m.month }}月
+        </a>
+        {% endfor %}
+      </div>
+
+      <p class="hint">休みたい日をタップ（複数OK）</p>
+      <div class="req-grid">
+        <div class="req-head">月</div><div class="req-head">火</div>
+        <div class="req-head">水</div><div class="req-head">木</div>
+        <div class="req-head">金</div>
+        <div class="req-head sat">土</div><div class="req-head sun">日</div>
+
+        {% set start_dow = (((sel_year if sel_month > 2 else sel_year-1)*365
+           + (sel_year if sel_month > 2 else sel_year-1)//4
+           - (sel_year if sel_month > 2 else sel_year-1)//100
+           + (sel_year if sel_month > 2 else sel_year-1)//400
+           + [0,3,2,5,0,3,5,1,4,6,2,4][(sel_month-1 if sel_month>2 else sel_month+11-1)]
+           + (sel_year if sel_month > 2 else sel_year)) % 7) %}
+        {% set offset = (start_dow + 6) % 7 %}
+        {% for i in range(offset) %}<div class="day-cb empty"><label></label></div>{% endfor %}
+        {% for day in range(1, days_in_month_req + 1) %}
+        {% set col = (offset + day - 1) % 7 %}
+        <div class="day-cb {% if col==5 %}sat{% elif col==6 %}sun{% endif %}">
+          <input type="checkbox" name="days_off" value="{{ day }}" id="r{{ day }}">
+          <label for="r{{ day }}">{{ day }}</label>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="selected-info" id="selInfo">選択なし</div>
+      <button type="submit" class="btn btn-sub">希望を送信する</button>
+    </form>
+    {% else %}
+    <p style="color:#9a7a5a;font-size:.88rem">スタッフが登録されていません</p>
+    {% endif %}
+  </div>
+
+  <!-- ③ 管理者ログイン -->
+  <div class="card" id="login">
+    <h2 class="section-title">🔐 管理者ログイン</h2>
+    {% if login_error %}<div class="error-box">{{ login_error }}</div>{% endif %}
+    <div class="login-area">
+      <p>管理者のみシフト編集・自動生成ができます</p>
+      <form method="post">
+        <input type="hidden" name="action" value="login">
+        <div class="login-row">
+          <input type="password" name="password" placeholder="パスワード" required>
+          <button type="submit" class="btn btn-login">ログイン</button>
         </div>
       </form>
+      {% if is_admin %}
+      <a href="/admin" class="admin-link">管理者画面へ →</a>
+      <a href="/logout" class="admin-link" style="color:#e05050">ログアウト</a>
+      {% endif %}
     </div>
   </div>
 
   <script>
-    function openAddModal(dateStr) {
-      document.getElementById("addDate").value = dateStr;
-      const [y, m, d] = dateStr.split("-");
-      document.getElementById("addDateLabel").textContent = `${y}年${parseInt(m)}月${parseInt(d)}日`;
-      document.getElementById("addModal").classList.add("active");
+    const boxes = document.querySelectorAll('input[name="days_off"]');
+    const info  = document.getElementById('selInfo');
+    function upd() {
+      const c = [...boxes].filter(b=>b.checked).map(b=>b.value+'日');
+      info.textContent = c.length ? '休み希望：'+c.join('、') : '選択なし';
     }
-    function openEditModal(id, name, start, end, memo) {
-      document.getElementById("editForm").action = `/shift/edit/${id}`;
-      document.getElementById("editStaffLabel").textContent = name;
-      document.getElementById("editStart").value = start;
-      document.getElementById("editEnd").value   = end;
-      document.getElementById("editMemo").value  = memo;
-      document.getElementById("editModal").classList.add("active");
-    }
-    function closeModal(id) {
-      document.getElementById(id).classList.remove("active");
-    }
-    // モーダル外クリックで閉じる
-    document.querySelectorAll(".modal-bg").forEach(bg => {
-      bg.addEventListener("click", e => { if (e.target === bg) bg.classList.remove("active"); });
-    });
+    boxes.forEach(b => b.addEventListener('change', upd));
   </script>
 </body>
 </html>
