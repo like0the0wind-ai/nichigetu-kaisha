@@ -69,7 +69,7 @@ def init_db():
     try:
         cur = conn.cursor()
         cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS staff (
+            CREATE TABLE IF NOT EXISTS shift_staff (
                 id               {serial} PRIMARY KEY {ai},
                 name             TEXT NOT NULL UNIQUE,
                 color            TEXT NOT NULL DEFAULT '#c87941',
@@ -83,7 +83,7 @@ def init_db():
             )
         """)
         cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS shifts (
+            CREATE TABLE IF NOT EXISTS shift_records (
                 id         {serial} PRIMARY KEY {ai},
                 staff_id   INTEGER NOT NULL,
                 shift_date TEXT NOT NULL,
@@ -94,7 +94,7 @@ def init_db():
             )
         """)
         cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS shift_settings (
+            CREATE TABLE IF NOT EXISTS shift_config (
                 id             {serial} PRIMARY KEY {ai},
                 month          TEXT NOT NULL UNIQUE,
                 marche_dates   TEXT NOT NULL DEFAULT '',
@@ -118,13 +118,13 @@ def init_db():
             ("days_off_str",    "TEXT NOT NULL DEFAULT ''"),
         ]:
             try:
-                cur.execute(f"ALTER TABLE staff ADD COLUMN {col} {defval}")
+                cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
                 conn.commit()
             except Exception:
                 pass
         for col, defval in [("slot_label", "TEXT NOT NULL DEFAULT ''")]:
             try:
-                cur.execute(f"ALTER TABLE shifts ADD COLUMN {col} {defval}")
+                cur.execute(f"ALTER TABLE shift_records ADD COLUMN {col} {defval}")
                 conn.commit()
             except Exception:
                 pass
@@ -173,10 +173,10 @@ def index():
     last_day  = date(year, month, calendar.monthrange(year, month)[1])
     cal       = calendar.monthcalendar(year, month)
 
-    staff_rows = query("SELECT * FROM staff ORDER BY id")
+    staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     shifts_raw = query(
-        "SELECT s.*, st.name as staff_name, st.color FROM shifts s "
-        "JOIN staff st ON s.staff_id = st.id "
+        "SELECT s.*, st.name as staff_name, st.color FROM shift_records s "
+        "JOIN shift_staff st ON s.staff_id = st.id "
         "WHERE s.shift_date BETWEEN ? AND ?",
         (first_day.isoformat(), last_day.isoformat())
     )
@@ -225,7 +225,7 @@ def shift_add():
         return redirect(request.referrer or url_for("index"))
 
     execute(
-        "INSERT INTO shifts (staff_id, shift_date, start_time, end_time, memo) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO shift_records (staff_id, shift_date, start_time, end_time, memo) VALUES (?, ?, ?, ?, ?)",
         (staff_id, shift_date, start_time, end_time, memo)
     )
 
@@ -241,8 +241,8 @@ def shift_delete(shift_id):
     if r:
         return r
 
-    row = query("SELECT shift_date FROM shifts WHERE id=?", (shift_id,))
-    execute("DELETE FROM shifts WHERE id=?", (shift_id,))
+    row = query("SELECT shift_date FROM shift_records WHERE id=?", (shift_id,))
+    execute("DELETE FROM shift_records WHERE id=?", (shift_id,))
 
     if row:
         d = date.fromisoformat(row[0]["shift_date"])
@@ -263,23 +263,23 @@ def shift_edit(shift_id):
         end_time   = request.form.get("end_time", "").strip()
         memo       = request.form.get("memo", "").strip()
         execute(
-            "UPDATE shifts SET start_time=?, end_time=?, memo=? WHERE id=?",
+            "UPDATE shift_records SET start_time=?, end_time=?, memo=? WHERE id=?",
             (start_time, end_time, memo, shift_id)
         )
-        row = query("SELECT shift_date FROM shifts WHERE id=?", (shift_id,))
+        row = query("SELECT shift_date FROM shift_records WHERE id=?", (shift_id,))
         if row:
             d = date.fromisoformat(row[0]["shift_date"])
             return redirect(url_for("index", year=d.year, month=d.month))
         return redirect(url_for("index"))
 
     shift = query(
-        "SELECT s.*, st.name as staff_name FROM shifts s "
-        "JOIN staff st ON s.staff_id = st.id WHERE s.id=?",
+        "SELECT s.*, st.name as staff_name FROM shift_records s "
+        "JOIN shift_staff st ON s.staff_id = st.id WHERE s.id=?",
         (shift_id,)
     )
     if not shift:
         return redirect(url_for("index"))
-    staff_rows = query("SELECT * FROM staff ORDER BY id")
+    staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     return render_template("edit_shift.html", shift=shift[0], staff_rows=staff_rows)
 
 
@@ -305,7 +305,7 @@ def staff():
             if not name:
                 error = "名前を入力してください"
             else:
-                existing = query("SELECT * FROM staff")
+                existing = query("SELECT * FROM shift_staff")
                 color = COLORS[len(existing) % len(COLORS)]
                 allowed_slots   = request.form.get("allowed_slots", "").strip()
                 max_days        = int(request.form.get("max_days", 0) or 0)
@@ -316,7 +316,7 @@ def staff():
                 days_off_str    = request.form.get("days_off_str", "").strip()
                 try:
                     execute(
-                        "INSERT INTO staff (name, color, allowed_slots, max_days, wed_ok, sun_ok, "
+                        "INSERT INTO shift_staff(name, color, allowed_slots, max_days, wed_ok, sun_ok, "
                         "sun_a_exclusive, same_day_ng, days_off_str) VALUES (?,?,?,?,?,?,?,?,?)",
                         (name, color, allowed_slots, max_days, wed_ok, sun_ok,
                          sun_a_exclusive, same_day_ng, days_off_str)
@@ -336,7 +336,7 @@ def staff():
             days_off_str    = request.form.get("days_off_str", "").strip()
             color           = request.form.get("color", "#c87941")
             execute(
-                "UPDATE staff SET color=?, allowed_slots=?, max_days=?, wed_ok=?, sun_ok=?, "
+                "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, wed_ok=?, sun_ok=?, "
                 "sun_a_exclusive=?, same_day_ng=?, days_off_str=? WHERE id=?",
                 (color, allowed_slots, max_days, wed_ok, sun_ok,
                  sun_a_exclusive, same_day_ng, days_off_str, sid)
@@ -345,13 +345,13 @@ def staff():
 
         elif action == "delete":
             sid = request.form.get("staff_id")
-            name_row = query("SELECT name FROM staff WHERE id=?", (sid,))
-            execute("DELETE FROM shifts WHERE staff_id=?", (sid,))
-            execute("DELETE FROM staff WHERE id=?", (sid,))
+            name_row = query("SELECT name FROM shift_staff WHERE id=?", (sid,))
+            execute("DELETE FROM shift_records WHERE staff_id=?", (sid,))
+            execute("DELETE FROM shift_staff WHERE id=?", (sid,))
             if name_row:
                 msg = f"{name_row[0]['name']} を削除しました"
 
-    staff_rows = query("SELECT * FROM staff ORDER BY id")
+    staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     return render_template("staff.html", staff_rows=staff_rows, msg=msg, error=error, colors=COLORS)
 
 
@@ -376,15 +376,15 @@ def generate():
 
             # 設定保存
             month_key = f"{year}-{month:02d}"
-            existing_setting = query("SELECT id FROM shift_settings WHERE month=?", (month_key,))
+            existing_setting = query("SELECT id FROM shift_config WHERE month=?", (month_key,))
             if existing_setting:
                 execute(
-                    "UPDATE shift_settings SET marche_dates=? WHERE month=?",
+                    "UPDATE shift_config SET marche_dates=? WHERE month=?",
                     (marche_dates_str, month_key)
                 )
             else:
                 execute(
-                    "INSERT INTO shift_settings (month, marche_dates) VALUES (?, ?)",
+                    "INSERT INTO shift_config (month, marche_dates) VALUES (?, ?)",
                     (month_key, marche_dates_str)
                 )
 
@@ -394,7 +394,7 @@ def generate():
                 if x.isdigit():
                     marche_dates.add(int(x))
 
-            staff_rows = query("SELECT * FROM staff ORDER BY id")
+            staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
             if not staff_rows:
                 error = "スタッフが登録されていません"
             else:
@@ -402,7 +402,7 @@ def generate():
                 first_day = date(year, month, 1)
                 last_day  = date(year, month, calendar.monthrange(year, month)[1])
                 execute(
-                    "DELETE FROM shifts WHERE shift_date BETWEEN ? AND ?",
+                    "DELETE FROM shift_records WHERE shift_date BETWEEN ? AND ?",
                     (first_day.isoformat(), last_day.isoformat())
                 )
 
@@ -415,7 +415,7 @@ def generate():
                     sid = sid_map.get(name)
                     if sid:
                         execute(
-                            "INSERT INTO shifts (staff_id, shift_date, start_time, end_time, slot_label, memo) "
+                            "INSERT INTO shift_records (staff_id, shift_date, start_time, end_time, slot_label, memo) "
                             "VALUES (?,?,?,?,?,?)",
                             (sid, date_str, start_t, end_t, slot, memo)
                         )
@@ -423,7 +423,7 @@ def generate():
                 msg = f"{year}年{month}月のシフトを生成しました（{len(assignments)}件）"
                 return redirect(url_for("index", year=year, month=month))
 
-    staff_rows = query("SELECT * FROM staff ORDER BY id")
+    staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     return render_template("generate.html",
         staff_rows=staff_rows, msg=msg, error=error,
         today=today,
@@ -583,8 +583,8 @@ def export_excel(year, month):
     last_day  = date(year, month, calendar.monthrange(year, month)[1])
 
     shifts_raw = query(
-        "SELECT s.*, st.name as staff_name FROM shifts s "
-        "JOIN staff st ON s.staff_id = st.id "
+        "SELECT s.*, st.name as staff_name FROM shift_records s "
+        "JOIN shift_staff st ON s.staff_id = st.id "
         "WHERE s.shift_date BETWEEN ? AND ? ORDER BY s.shift_date, s.slot_label",
         (first_day.isoformat(), last_day.isoformat())
     )
@@ -597,7 +597,7 @@ def export_excel(year, month):
         name = sh["staff_name"]
         day_map.setdefault(d, {})[slot] = name
 
-    setting = query("SELECT * FROM shift_settings WHERE month=?", (f"{year}-{month:02d}",))
+    setting = query("SELECT * FROM shift_config WHERE month=?", (f"{year}-{month:02d}",))
     marche_dates = set()
     if setting:
         for x in (setting[0].get("marche_dates") or "").split(","):
@@ -664,7 +664,7 @@ def export_excel(year, month):
                 notes.append(f"{name} (9:00〜仕込み)")
 
         # 休み希望の備考
-        staff_rows = query("SELECT name, days_off_str FROM staff ORDER BY id")
+        staff_rows = query("SELECT name, days_off_str FROM shift_staff ORDER BY id")
         off_names = []
         for s in staff_rows:
             offs = set()
@@ -744,8 +744,8 @@ def api_day():
         return jsonify([])
     d = request.args.get("date", "")
     rows = query(
-        "SELECT s.*, st.name as staff_name, st.color FROM shifts s "
-        "JOIN staff st ON s.staff_id = st.id "
+        "SELECT s.*, st.name as staff_name, st.color FROM shift_records s "
+        "JOIN shift_staff st ON s.staff_id = st.id "
         "WHERE s.shift_date=? ORDER BY s.start_time",
         (d,)
     )
