@@ -207,6 +207,11 @@ def shift_request():
                     "INSERT INTO shift_requests (staff_name, month, days_off_str, submitted_at) VALUES (?,?,?,?)",
                     (staff_name, month_str, days_off_str, now_jst())
                 )
+            # shift_staff の days_off_str も更新
+            execute(
+                "UPDATE shift_staff SET days_off_str=? WHERE name=?",
+                (days_off_str, staff_name)
+            )
             msg = f"{staff_name} さんの {month_str} の希望を受け付けました"
 
     # 選択月のカレンダー用
@@ -505,9 +510,13 @@ def generate():
                 return redirect(url_for("index", year=year, month=month))
 
     staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
+    # 直近3ヶ月の提出済み希望を表示
+    requests = query(
+        "SELECT * FROM shift_requests ORDER BY month DESC, staff_name"
+    )
     return render_template("generate.html",
         staff_rows=staff_rows, msg=msg, error=error,
-        today=today,
+        today=today, requests=requests,
     )
 
 

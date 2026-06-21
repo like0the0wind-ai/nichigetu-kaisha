@@ -111,6 +111,32 @@
     </form>
   </div>
 
+  {% if requests %}
+  <div class="card">
+    <h2>📨 提出済みシフト希望</h2>
+    <table class="staff-table">
+      <thead>
+        <tr>
+          <th>スタッフ</th>
+          <th>対象月</th>
+          <th>休み希望日</th>
+          <th>提出日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td>{{ r.staff_name }}</td>
+          <td>{{ r.month }}</td>
+          <td>{{ r.days_off_str or 'なし' }}</td>
+          <td style="font-size:.75rem;color:#9a7a5a">{{ r.submitted_at[:16] if r.submitted_at else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
   <div class="card">
     <h2>スタッフ設定の確認</h2>
     <div style="overflow-x:auto">
