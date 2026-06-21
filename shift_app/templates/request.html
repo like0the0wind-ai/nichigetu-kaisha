@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>シフト希望 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { text-align: center; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.2rem; letter-spacing: .15em; color: #7a4010; margin-bottom: .3rem; }
+    .sub { font-size: .82rem; color: #9a7a5a; }
+    .card {
+      background: rgba(255,255,255,0.85); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.1); max-width: 500px; margin-left: auto; margin-right: auto;
+    }
+    h2 { font-size: .95rem; color: #7a4010; margin-bottom: .9rem; font-weight: normal; }
+    .msg   { color: #3a6a3a; background: #e8f5e8; border-radius: 8px; padding: .75rem 1rem; margin-bottom: .75rem; font-size: .9rem; text-align: center; }
+    .error { color: #a04020; background: #ffe8e0; border-radius: 8px; padding: .75rem 1rem; margin-bottom: .75rem; font-size: .9rem; }
+
+    label { font-size: .85rem; color: #7a4010; display: block; margin-bottom: .25rem; }
+    select {
+      width: 100%; padding: .65rem .9rem; margin-bottom: 1rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem; font-family: inherit;
+    }
+
+    /* 月タブ */
+    .month-tabs { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .month-tab {
+      padding: .4rem .9rem; border: 1px solid #c8a878; border-radius: 8px;
+      font-size: .85rem; color: #9a6a3a; text-decoration: none; background: #faf5ee;
+    }
+    .month-tab.active { background: #c87941; color: #fff; border-color: #c87941; }
+
+    /* カレンダーチェック */
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 1rem;
+    }
+    .cal-head {
+      text-align: center; font-size: .75rem; color: #9a7a5a; padding: .2rem 0;
+    }
+    .cal-head.sat { color: #2a6aaa; }
+    .cal-head.sun { color: #aa2a2a; }
+    .day-cell { position: relative; }
+    .day-cell input[type=checkbox] { display: none; }
+    .day-cell label {
+      display: flex; align-items: center; justify-content: center;
+      height: 40px; border-radius: 8px; font-size: .9rem;
+      border: 1px solid #e0cdb0; background: #faf5ee; cursor: pointer;
+      color: #3a2010; margin: 0;
+    }
+    .day-cell.sat label { color: #2a6aaa; }
+    .day-cell.sun label { color: #aa2a2a; }
+    .day-cell input:checked + label {
+      background: #c87941; color: #fff; border-color: #c87941; font-weight: bold;
+    }
+    .day-cell.empty label { background: transparent; border-color: transparent; cursor: default; }
+    .day-cell.today label { border-color: #c87941; border-width: 2px; }
+
+    .hint { font-size: .78rem; color: #9a7a5a; margin-bottom: .75rem; }
+    .selected-days { font-size: .85rem; color: #7a4010; min-height: 1.5rem; margin-bottom: .75rem; }
+
+    .btn {
+      width: 100%; padding: .8rem; background: #c87941; color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem;
+      font-family: inherit; cursor: pointer; font-weight: bold; letter-spacing: .05em;
+    }
+    .btn:hover { background: #a06030; }
+
+    .admin-link { text-align: center; margin-top: 1rem; }
+    .admin-link a { font-size: .8rem; color: #9a7a5a; text-decoration: none; }
+    .admin-link a:hover { color: #c87941; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📅 シフト希望提出</h1>
+    <p class="sub">休みたい日にチェックを入れて送信してください</p>
+  </header>
+
+  <div class="card">
+    {% if msg %}<div class="msg">✅ {{ msg }}</div>{% endif %}
+    {% if error %}<div class="error">⚠️ {{ error }}</div>{% endif %}
+
+    {% if not staff_rows %}
+    <p style="color:#9a7a5a;text-align:center;padding:1rem">スタッフがまだ登録されていません</p>
+    {% else %}
+    <form method="post" action="/request?month={{ sel_month_str }}">
+      <input type="hidden" name="month" value="{{ sel_month_str }}">
+
+      <label>あなたの名前</label>
+      <select name="staff_name" required>
+        <option value="">— 選択 —</option>
+        {% for s in staff_rows %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label>対象月</label>
+      <div class="month-tabs">
+        {% for m in months %}
+        {% set ms = m.strftime('%Y-%m') %}
+        <a href="/request?month={{ ms }}" class="month-tab {% if ms == sel_month_str %}active{% endif %}">
+          {{ m.year }}年{{ m.month }}月
+        </a>
+        {% endfor %}
+      </div>
+
+      <p class="hint">休みたい日をタップしてください（複数選択可）</p>
+
+      <div class="cal-grid">
+        <div class="cal-head">月</div>
+        <div class="cal-head">火</div>
+        <div class="cal-head">水</div>
+        <div class="cal-head">木</div>
+        <div class="cal-head">金</div>
+        <div class="cal-head sat">土</div>
+        <div class="cal-head sun">日</div>
+
+        {% set first_dow = (sel_year * 365 + (sel_month - 1) * 30) | int %}
+        {% set fd = namespace(dow=0) %}
+        {% set first_date = sel_year ~ '-' ~ '%02d'|format(sel_month) ~ '-01' %}
+
+        {# 月初の曜日を計算 #}
+        {% set start_dow = (((sel_year if sel_month > 2 else sel_year - 1)) * 365
+           + ((sel_year if sel_month > 2 else sel_year - 1) // 4)
+           - ((sel_year if sel_month > 2 else sel_year - 1) // 100)
+           + ((sel_year if sel_month > 2 else sel_year - 1) // 400)
+           + [0,3,2,5,0,3,5,1,4,6,2,4][(sel_month - 1 if sel_month > 2 else sel_month + 11 - 1)]
+           + (sel_year if sel_month > 2 else sel_year)) % 7 %}
+        {# 日曜=0 → 月曜始まりに変換: (start_dow + 6) % 7 #}
+        {% set offset = (start_dow + 6) % 7 %}
+
+        {% for i in range(offset) %}
+        <div class="day-cell empty"><label></label></div>
+        {% endfor %}
+
+        {% for day in range(1, days_in_month + 1) %}
+        {% set col = (offset + day - 1) % 7 %}
+        {% set is_sat = col == 5 %}
+        {% set is_sun = col == 6 %}
+        {% set is_today = (sel_year == today.year and sel_month == today.month and day == today.day) %}
+        <div class="day-cell {% if is_sat %}sat{% elif is_sun %}sun{% endif %} {% if is_today %}today{% endif %}">
+          <input type="checkbox" name="days_off" value="{{ day }}" id="d{{ day }}">
+          <label for="d{{ day }}">{{ day }}</label>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="selected-days" id="selectedDays">休みたい日：なし</div>
+
+      <button type="submit" class="btn">希望を送信する</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="admin-link">
+    <a href="/login">管理者ログイン →</a>
+  </div>
+
+  <script>
+    const boxes = document.querySelectorAll('input[name="days_off"]');
+    const display = document.getElementById('selectedDays');
+    function updateDisplay() {
+      const checked = [...boxes].filter(b => b.checked).map(b => b.value + '日');
+      display.textContent = checked.length ? '休みたい日：' + checked.join('、') : '休みたい日：なし';
+    }
+    boxes.forEach(b => b.addEventListener('change', updateDisplay));
+  </script>
+</body>
+</html>

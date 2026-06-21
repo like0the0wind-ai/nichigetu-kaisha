@@ -94,6 +94,16 @@ def init_db():
             )
         """)
         cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS shift_requests (
+                id           {serial} PRIMARY KEY {ai},
+                staff_name   TEXT NOT NULL,
+                month        TEXT NOT NULL,
+                days_off_str TEXT NOT NULL DEFAULT '',
+                submitted_at TEXT NOT NULL,
+                UNIQUE(staff_name, month)
+            )
+        """)
+        cur.execute(f"""
             CREATE TABLE IF NOT EXISTS shift_config (
                 id             {serial} PRIMARY KEY {ai},
                 month          TEXT NOT NULL UNIQUE,
@@ -155,6 +165,68 @@ def require_login():
     if not session.get("admin"):
         return redirect(url_for("login"))
     return None
+
+
+# ── シフト希望（公開） ────────────────────────────────────────────────
+
+@app.route("/request", methods=["GET", "POST"])
+def shift_request():
+    today = today_jst()
+    # 対象月（今月・来月）
+    months = []
+    for delta in range(0, 3):
+        m = date(today.year, today.month, 1)
+        if today.month + delta <= 12:
+            months.append(date(today.year, today.month + delta, 1))
+        else:
+            months.append(date(today.year + 1, (today.month + delta) - 12, 1))
+
+    staff_rows = query("SELECT name FROM shift_staff ORDER BY id")
+    msg = error = None
+
+    if request.method == "POST":
+        staff_name = request.form.get("staff_name", "").strip()
+        month_str  = request.form.get("month", "").strip()  # YYYY-MM
+        days_off   = sorted(set(request.form.getlist("days_off")))
+        days_off_str = ",".join(days_off)
+
+        if not staff_name or not month_str:
+            error = "名前と対象月を選択してください"
+        else:
+            existing = query(
+                "SELECT id FROM shift_requests WHERE staff_name=? AND month=?",
+                (staff_name, month_str)
+            )
+            if existing:
+                execute(
+                    "UPDATE shift_requests SET days_off_str=?, submitted_at=? WHERE staff_name=? AND month=?",
+                    (days_off_str, now_jst(), staff_name, month_str)
+                )
+            else:
+                execute(
+                    "INSERT INTO shift_requests (staff_name, month, days_off_str, submitted_at) VALUES (?,?,?,?)",
+                    (staff_name, month_str, days_off_str, now_jst())
+                )
+            msg = f"{staff_name} さんの {month_str} の希望を受け付けました"
+
+    # 選択月のカレンダー用
+    sel_month_str = request.args.get("month", months[0].strftime("%Y-%m"))
+    try:
+        sel_year, sel_month = map(int, sel_month_str.split("-"))
+    except Exception:
+        sel_year, sel_month = today.year, today.month
+    days_in_month = calendar.monthrange(sel_year, sel_month)[1]
+
+    return render_template(
+        "request.html",
+        staff_rows=staff_rows,
+        months=months,
+        sel_month_str=sel_month_str,
+        sel_year=sel_year, sel_month=sel_month,
+        days_in_month=days_in_month,
+        today=today,
+        msg=msg, error=error,
+    )
 
 
 # ── Index (月次カレンダー) ──────────────────────────────────────────
@@ -398,6 +470,15 @@ def generate():
             if not staff_rows:
                 error = "スタッフが登録されていません"
             else:
+                # シフト希望をdays_off_strに反映
+                requests = query(
+                    "SELECT staff_name, days_off_str FROM shift_requests WHERE month=?",
+                    (month_key,)
+                )
+                req_map = {r["staff_name"]: r["days_off_str"] for r in requests}
+                for s in staff_rows:
+                    if s["name"] in req_map:
+                        s["days_off_str"] = req_map[s["name"]]
                 # 既存の自動生成シフトを削除（月全体）
                 first_day = date(year, month, 1)
                 last_day  = date(year, month, calendar.monthrange(year, month)[1])
