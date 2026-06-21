@@ -1,6 +1,5 @@
 import io
 import os
-import sqlite3
 import calendar
 from datetime import datetime, date, timezone, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
@@ -17,16 +16,30 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "shift-secret-key")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "saito")
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "shift.db")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if DATABASE_URL:
+        import psycopg2, psycopg2.extras
+        url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(url)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        return conn
+    else:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(__file__), "shift.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+def ph():
+    return "%s" if DATABASE_URL else "?"
 
 
 def execute(sql, params=()):
+    p = ph()
+    sql = sql.replace("?", p)
     conn = get_db()
     try:
         cur = conn.cursor()
@@ -38,6 +51,8 @@ def execute(sql, params=()):
 
 
 def query(sql, params=()):
+    p = ph()
+    sql = sql.replace("?", p)
     conn = get_db()
     try:
         cur = conn.cursor()
@@ -48,12 +63,14 @@ def query(sql, params=()):
 
 
 def init_db():
+    serial = "SERIAL" if DATABASE_URL else "INTEGER"
+    ai     = "" if DATABASE_URL else "AUTOINCREMENT"
     conn = get_db()
     try:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(f"""
             CREATE TABLE IF NOT EXISTS staff (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                id               {serial} PRIMARY KEY {ai},
                 name             TEXT NOT NULL UNIQUE,
                 color            TEXT NOT NULL DEFAULT '#c87941',
                 allowed_slots    TEXT NOT NULL DEFAULT '',
@@ -65,33 +82,32 @@ def init_db():
                 days_off_str     TEXT NOT NULL DEFAULT ''
             )
         """)
-        cur.execute("""
+        cur.execute(f"""
             CREATE TABLE IF NOT EXISTS shifts (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                id         {serial} PRIMARY KEY {ai},
                 staff_id   INTEGER NOT NULL,
                 shift_date TEXT NOT NULL,
                 start_time TEXT NOT NULL,
                 end_time   TEXT NOT NULL,
                 slot_label TEXT NOT NULL DEFAULT '',
-                memo       TEXT DEFAULT '',
-                FOREIGN KEY (staff_id) REFERENCES staff(id)
+                memo       TEXT DEFAULT ''
             )
         """)
-        cur.execute("""
+        cur.execute(f"""
             CREATE TABLE IF NOT EXISTS shift_settings (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                month         TEXT NOT NULL UNIQUE,
-                marche_dates  TEXT NOT NULL DEFAULT '',
-                slot_a_label  TEXT NOT NULL DEFAULT '6:30〜製造・品出し',
-                slot_b_label  TEXT NOT NULL DEFAULT '9:00〜レジ',
-                slot_c_label  TEXT NOT NULL DEFAULT '9:00〜レジ補助',
-                slot_d_label  TEXT NOT NULL DEFAULT '10:00〜品出し(日曜)',
-                slot_m_label  TEXT NOT NULL DEFAULT '7:00〜マルシェ',
+                id             {serial} PRIMARY KEY {ai},
+                month          TEXT NOT NULL UNIQUE,
+                marche_dates   TEXT NOT NULL DEFAULT '',
+                slot_a_label   TEXT NOT NULL DEFAULT '6:30〜製造・品出し',
+                slot_b_label   TEXT NOT NULL DEFAULT '9:00〜レジ',
+                slot_c_label   TEXT NOT NULL DEFAULT '9:00〜レジ補助',
+                slot_d_label   TEXT NOT NULL DEFAULT '10:00〜品出し(日曜)',
+                slot_m_label   TEXT NOT NULL DEFAULT '7:00〜マルシェ',
                 marche_m_count INTEGER NOT NULL DEFAULT 2
             )
         """)
         conn.commit()
-        # マイグレーション: 既存のstaffテーブルにカラムを追加
+        # マイグレーション
         for col, defval in [
             ("allowed_slots",   "TEXT NOT NULL DEFAULT ''"),
             ("max_days",        "INTEGER NOT NULL DEFAULT 0"),
@@ -106,9 +122,7 @@ def init_db():
                 conn.commit()
             except Exception:
                 pass
-        for col, defval in [
-            ("slot_label", "TEXT NOT NULL DEFAULT ''"),
-        ]:
+        for col, defval in [("slot_label", "TEXT NOT NULL DEFAULT ''")]:
             try:
                 cur.execute(f"ALTER TABLE shifts ADD COLUMN {col} {defval}")
                 conn.commit()
@@ -740,6 +754,6 @@ def api_day():
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True, port=5050)
+    app.run(debug=True, port=5050, host="0.0.0.0")
 
 init_db()
