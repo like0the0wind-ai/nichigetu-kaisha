@@ -277,6 +277,65 @@ def index():
     )
 
 
+# ── シフト希望ページ ────────────────────────────────────────────────────
+
+@app.route("/request", methods=["GET", "POST"])
+def shift_request():
+    today = today_jst()
+    months = []
+    for delta in range(0, 3):
+        if today.month + delta <= 12:
+            months.append(date(today.year, today.month + delta, 1))
+        else:
+            months.append(date(today.year + 1, (today.month + delta) - 12, 1))
+
+    sel_month_str = request.args.get("month", months[0].strftime("%Y-%m"))
+    try:
+        sel_year, sel_month = map(int, sel_month_str.split("-"))
+    except Exception:
+        sel_year, sel_month = today.year, today.month
+    days_in_month = calendar.monthrange(sel_year, sel_month)[1]
+
+    msg = error = None
+    if request.method == "POST":
+        staff_name   = request.form.get("staff_name", "").strip()
+        month_str    = request.form.get("month", "").strip()
+        days_off     = sorted(set(request.form.getlist("days_off")), key=int)
+        days_off_str = ",".join(days_off)
+        if not staff_name or not month_str:
+            error = "名前と対象月を選択してください"
+        else:
+            existing = query(
+                "SELECT id FROM shift_requests WHERE staff_name=? AND month=?",
+                (staff_name, month_str)
+            )
+            if existing:
+                execute(
+                    "UPDATE shift_requests SET days_off_str=?, submitted_at=? WHERE staff_name=? AND month=?",
+                    (days_off_str, now_jst(), staff_name, month_str)
+                )
+            else:
+                execute(
+                    "INSERT INTO shift_requests (staff_name, month, days_off_str, submitted_at) VALUES (?,?,?,?)",
+                    (staff_name, month_str, days_off_str, now_jst())
+                )
+            execute(
+                "UPDATE shift_staff SET days_off_str=? WHERE name=?",
+                (days_off_str, staff_name)
+            )
+            msg = f"{staff_name} さんの {month_str} の希望を受け付けました"
+
+    staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
+    return render_template(
+        "request.html",
+        staff_rows=staff_rows, today=today,
+        months=months, sel_month_str=sel_month_str,
+        sel_year=sel_year, sel_month=sel_month,
+        days_in_month=days_in_month,
+        msg=msg, error=error,
+    )
+
+
 # ── 管理者画面 ────────────────────────────────────────────────────────
 
 @app.route("/admin")

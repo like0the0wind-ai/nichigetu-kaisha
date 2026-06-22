@@ -186,61 +186,10 @@
   </div>
 
   <!-- ② シフト希望 -->
-  <div class="card">
+  <div class="card" style="text-align:center">
     <h2 class="section-title">📝 シフト希望を出す</h2>
-    {% if req_msg %}<div class="msg">{{ req_msg }}</div>{% endif %}
-    {% if req_error %}<div class="error-box">{{ req_error }}</div>{% endif %}
-    {% if staff_rows %}
-    <form method="post">
-      <input type="hidden" name="action" value="request">
-      <input type="hidden" name="req_month_val" id="reqMonthVal" value="{{ sel_month_str }}">
-
-      <select name="staff_name" required>
-        <option value="">— 名前を選択 —</option>
-        {% for s in staff_rows %}
-        <option value="{{ s.name }}">{{ s.name }}</option>
-        {% endfor %}
-      </select>
-
-      <div class="month-tabs">
-        {% for m in months %}
-        {% set ms = m.strftime('%Y-%m') %}
-        <a href="/?req_month={{ ms }}#request" class="month-tab {% if ms == sel_month_str %}active{% endif %}"
-           onclick="document.getElementById('reqMonthVal').value='{{ ms }}'">
-          {{ m.year }}年{{ m.month }}月
-        </a>
-        {% endfor %}
-      </div>
-
-      <p class="hint">休みたい日をタップ（複数OK）</p>
-      <div class="req-grid">
-        <div class="req-head">月</div><div class="req-head">火</div>
-        <div class="req-head">水</div><div class="req-head">木</div>
-        <div class="req-head">金</div>
-        <div class="req-head sat">土</div><div class="req-head sun">日</div>
-
-        {% set start_dow = (((sel_year if sel_month > 2 else sel_year-1)*365
-           + (sel_year if sel_month > 2 else sel_year-1)//4
-           - (sel_year if sel_month > 2 else sel_year-1)//100
-           + (sel_year if sel_month > 2 else sel_year-1)//400
-           + [0,3,2,5,0,3,5,1,4,6,2,4][(sel_month-1 if sel_month>2 else sel_month+11-1)]
-           + (sel_year if sel_month > 2 else sel_year)) % 7) %}
-        {% set offset = (start_dow + 6) % 7 %}
-        {% for i in range(offset) %}<div class="day-cb empty"><label></label></div>{% endfor %}
-        {% for day in range(1, days_in_month_req + 1) %}
-        {% set col = (offset + day - 1) % 7 %}
-        <div class="day-cb {% if col==5 %}sat{% elif col==6 %}sun{% endif %}">
-          <input type="checkbox" name="days_off" value="{{ day }}" id="r{{ day }}">
-          <label for="r{{ day }}">{{ day }}</label>
-        </div>
-        {% endfor %}
-      </div>
-      <div class="selected-info" id="selInfo">選択なし</div>
-      <button type="submit" class="btn btn-sub">希望を送信する</button>
-    </form>
-    {% else %}
-    <p style="color:#9a7a5a;font-size:.88rem">スタッフが登録されていません</p>
-    {% endif %}
+    <p style="font-size:.88rem;color:#9a7a5a;margin-bottom:1rem">休みたい日を登録できます</p>
+    <a href="/request" class="btn btn-sub" style="display:inline-block;width:auto;padding:.75rem 2rem;text-decoration:none;border-radius:10px">シフト希望を入力する →</a>
   </div>
 
   <!-- ③ 管理者ログイン -->
