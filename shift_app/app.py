@@ -126,6 +126,7 @@ def init_db():
             ("sun_a_exclusive", "INTEGER NOT NULL DEFAULT 0"),
             ("same_day_ng",     "TEXT NOT NULL DEFAULT ''"),
             ("days_off_str",    "TEXT NOT NULL DEFAULT ''"),
+            ("min_sun_days",    "INTEGER NOT NULL DEFAULT 0"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
@@ -499,6 +500,7 @@ def staff():
             sid             = request.form.get("staff_id")
             allowed_slots   = request.form.get("allowed_slots", "").strip()
             max_days        = int(request.form.get("max_days", 0) or 0)
+            min_sun_days    = int(request.form.get("min_sun_days", 0) or 0)
             wed_ok          = 1 if request.form.get("wed_ok") else 0
             sun_ok          = 1 if request.form.get("sun_ok") else 0
             sun_a_exclusive = 1 if request.form.get("sun_a_exclusive") else 0
@@ -506,9 +508,9 @@ def staff():
             days_off_str    = request.form.get("days_off_str", "").strip()
             color           = request.form.get("color", "#c87941")
             execute(
-                "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, wed_ok=?, sun_ok=?, "
+                "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, min_sun_days=?, wed_ok=?, sun_ok=?, "
                 "sun_a_exclusive=?, same_day_ng=?, days_off_str=? WHERE id=?",
-                (color, allowed_slots, max_days, wed_ok, sun_ok,
+                (color, allowed_slots, max_days, min_sun_days, wed_ok, sun_ok,
                  sun_a_exclusive, same_day_ng, days_off_str, sid)
             )
             msg = "スタッフ情報を更新しました"
@@ -642,6 +644,7 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
             "name":            s["name"],
             "allowed_slots":   allowed,
             "max_days":        s.get("max_days") or 0,
+            "min_sun_days":    s.get("min_sun_days") or 0,
             "wed_ok":          bool(s.get("wed_ok")),
             "sun_ok":          bool(s.get("sun_ok")),
             "sun_a_exclusive": bool(s.get("sun_a_exclusive")),
@@ -650,8 +653,9 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
         })
 
     days_in_month = calendar.monthrange(year, month)[1]
-    work_count    = {s["name"]: 0 for s in staff_info}
-    assignments   = []
+    work_count     = {s["name"]: 0 for s in staff_info}
+    sun_work_count = {s["name"]: 0 for s in staff_info}
+    assignments    = []
 
     for day in range(1, days_in_month + 1):
         d   = date(year, month, day)
@@ -728,9 +732,15 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
             # 優先度ソート
             def priority(s):
                 ratio = work_count[s["name"]] / s["max_days"] if s["max_days"] > 0 else 0
+                # 日曜最低出勤未達成のスタッフを最優先
+                sun_needed = 0
+                if dow == 6 and s["min_sun_days"] > 0:
+                    sun_needed = 0 if sun_work_count[s["name"]] < s["min_sun_days"] else 1
+                else:
+                    sun_needed = 1
                 # 日曜A枠は sun_a_exclusive を優先
                 exclusive_bonus = 0 if (slot == "A" and dow == 6 and s["sun_a_exclusive"]) else 1
-                return (exclusive_bonus, ratio)
+                return (sun_needed, exclusive_bonus, ratio)
 
             eligible.sort(key=priority)
             chosen = eligible[0]["name"]
@@ -738,6 +748,8 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
             assigned_today[slot_key] = chosen
             assigned_names.add(chosen)
             work_count[chosen] += 1
+            if dow == 6:
+                sun_work_count[chosen] += 1
 
             start_t, end_t = SLOT_TIMES.get(slot, ("09:00", "17:00"))
             memo = f"{slot}枠" if slot != "仕込み" else "仕込み"
