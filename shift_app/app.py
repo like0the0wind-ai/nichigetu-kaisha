@@ -132,13 +132,13 @@ def init_db():
                 cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
                 conn.commit()
             except Exception:
-                pass
+                conn.rollback()
         for col, defval in [("slot_label", "TEXT NOT NULL DEFAULT ''")]:
             try:
                 cur.execute(f"ALTER TABLE shift_records ADD COLUMN {col} {defval}")
                 conn.commit()
             except Exception:
-                pass
+                conn.rollback()
     finally:
         conn.close()
 
