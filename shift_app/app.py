@@ -158,12 +158,12 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("admin"))
+    return redirect(url_for("index"))
 
 
 def require_login():
     if not session.get("admin"):
-        return redirect(url_for("admin"))
+        return redirect(url_for("index"))
     return None
 
 
@@ -282,7 +282,7 @@ def index():
 @app.route("/admin")
 def admin():
     if not session.get("admin"):
-        return redirect(url_for("admin"))
+        return redirect(url_for("index"))
     today = today_jst()
     year  = int(request.args.get("year",  today.year))
     month = int(request.args.get("month", today.month))
