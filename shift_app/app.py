@@ -224,6 +224,8 @@ def index():
     shift_map = {}
     for sh in shifts_raw:
         shift_map.setdefault(sh["shift_date"], []).append(sh)
+    for d in shift_map:
+        shift_map[d].sort(key=lambda x: x["start_time"])
 
     if month == 1:
         prev_year, prev_month = year - 1, 12
