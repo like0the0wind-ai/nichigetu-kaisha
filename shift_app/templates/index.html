@@ -67,9 +67,18 @@
       padding: .1rem .3rem; font-size: .65rem; margin-bottom: .1rem;
       color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
-    .legend-item { display: flex; align-items: center; gap: .25rem; font-size: .75rem; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    /* ── スタッフフィルター ── */
+    .staff-filters { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .6rem; }
+    .filter-btn {
+      display: flex; align-items: center; gap: .3rem;
+      padding: .3rem .65rem; border-radius: 20px; font-size: .78rem;
+      border: 2px solid transparent; cursor: pointer; font-family: inherit;
+      background: #f0e8d8; color: #3a2010; transition: opacity .15s;
+    }
+    .filter-btn.active { border-color: #3a2010; font-weight: bold; }
+    .filter-btn.all-btn { background: #c8a878; color: #fff; }
+    .filter-btn.all-btn.active { border-color: #7a4010; }
+    .filter-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
     /* ── シフト希望 ── */
     .month-tabs { display: flex; gap: .4rem; margin-bottom: .75rem; flex-wrap: wrap; }
@@ -146,12 +155,14 @@
       <a href="/?year={{ today.year }}&month={{ today.month }}" style="font-size:.75rem">今月</a>
     </div>
     {% if staff_rows %}
-    <div class="legend">
+    <div class="staff-filters">
+      <button class="filter-btn all-btn active" onclick="filterStaff('all', this)">全員</button>
       {% for s in staff_rows %}
-      <div class="legend-item">
-        <span class="legend-dot" style="background:{{ s.color }}"></span>
-        <span>{{ s.name }}</span>
-      </div>
+      <button class="filter-btn" onclick="filterStaff('{{ s.name }}', this)"
+              style="border-color:{{ s.color }}20">
+        <span class="filter-dot" style="background:{{ s.color }}"></span>
+        {{ s.name }}
+      </button>
       {% endfor %}
     </div>
     {% endif %}
@@ -176,8 +187,8 @@
             <td class="{% if is_today %}today-cell{% endif %}">
               <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">{{ day }}</div>
               {% for sh in shift_map.get(d, []) %}
-              <span class="shift-chip" style="background:{{ sh.color }}">
-                {{ sh.staff_name }} {{ sh.slot_label }}
+              <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
+                {{ sh.staff_name }} {{ sh.start_time }}〜{{ sh.end_time }}
               </span>
               {% endfor %}
             </td>
@@ -225,6 +236,14 @@
   {% endif %}
 
   <script>
+    function filterStaff(name, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.shift-chip').forEach(chip => {
+        chip.style.display = (name === 'all' || chip.dataset.staff === name) ? 'block' : 'none';
+      });
+    }
+
     function toggleLogin() {
       const card = document.getElementById('loginCard');
       const btn  = document.getElementById('loginToggleBtn');
