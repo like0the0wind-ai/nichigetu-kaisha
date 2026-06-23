@@ -104,6 +104,40 @@ def init_db():
             )
         """)
         cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS shift_day_rules (
+                dow         INTEGER NOT NULL UNIQUE,
+                is_closed   INTEGER NOT NULL DEFAULT 0,
+                slot_a      INTEGER NOT NULL DEFAULT 0,
+                slot_b      INTEGER NOT NULL DEFAULT 0,
+                slot_c      INTEGER NOT NULL DEFAULT 0,
+                slot_d      INTEGER NOT NULL DEFAULT 0,
+                slot_m      INTEGER NOT NULL DEFAULT 0,
+                slot_shikomi INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        conn.commit()
+        # デフォルトの曜日設定を挿入（存在しない場合のみ）
+        defaults = [
+            # dow, closed, A, B, C, D, M, 仕込み
+            (0, 0, 1, 1, 1, 0, 0, 0),  # 月
+            (1, 0, 0, 0, 0, 0, 0, 1),  # 火
+            (2, 0, 0, 0, 0, 0, 0, 1),  # 水
+            (3, 0, 1, 1, 1, 0, 0, 0),  # 木
+            (4, 0, 1, 1, 1, 0, 0, 0),  # 金
+            (5, 1, 0, 0, 0, 0, 0, 0),  # 土（休業）
+            (6, 0, 1, 1, 1, 1, 0, 0),  # 日
+        ]
+        for row in defaults:
+            try:
+                cur.execute(
+                    "INSERT INTO shift_day_rules (dow,is_closed,slot_a,slot_b,slot_c,slot_d,slot_m,slot_shikomi) "
+                    "VALUES (?,?,?,?,?,?,?,?)".replace("?", "%s" if DATABASE_URL else "?"),
+                    row
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        cur.execute(f"""
             CREATE TABLE IF NOT EXISTS shift_config (
                 id             {serial} PRIMARY KEY {ai},
                 month          TEXT NOT NULL UNIQUE,
@@ -529,6 +563,43 @@ def staff():
     return render_template("staff.html", staff_rows=staff_rows, msg=msg, error=error, colors=COLORS)
 
 
+# ── 曜日別シフト設定 ─────────────────────────────────────────────────
+
+DOW_JP = ["月", "火", "水", "木", "金", "土", "日"]
+
+@app.route("/day-rules", methods=["GET", "POST"])
+def day_rules():
+    r = require_login()
+    if r:
+        return r
+
+    msg = None
+    if request.method == "POST":
+        for dow in range(7):
+            is_closed  = 1 if request.form.get(f"closed_{dow}") else 0
+            slot_a     = int(request.form.get(f"a_{dow}", 0) or 0)
+            slot_b     = int(request.form.get(f"b_{dow}", 0) or 0)
+            slot_c     = int(request.form.get(f"c_{dow}", 0) or 0)
+            slot_d     = int(request.form.get(f"d_{dow}", 0) or 0)
+            slot_m     = int(request.form.get(f"m_{dow}", 0) or 0)
+            slot_shikomi = int(request.form.get(f"shikomi_{dow}", 0) or 0)
+            existing = query("SELECT dow FROM shift_day_rules WHERE dow=?", (dow,))
+            if existing:
+                execute(
+                    "UPDATE shift_day_rules SET is_closed=?,slot_a=?,slot_b=?,slot_c=?,slot_d=?,slot_m=?,slot_shikomi=? WHERE dow=?",
+                    (is_closed, slot_a, slot_b, slot_c, slot_d, slot_m, slot_shikomi, dow)
+                )
+            else:
+                execute(
+                    "INSERT INTO shift_day_rules (dow,is_closed,slot_a,slot_b,slot_c,slot_d,slot_m,slot_shikomi) VALUES (?,?,?,?,?,?,?,?)",
+                    (dow, is_closed, slot_a, slot_b, slot_c, slot_d, slot_m, slot_shikomi)
+                )
+        msg = "曜日設定を保存しました"
+
+    rows = {r["dow"]: r for r in query("SELECT * FROM shift_day_rules ORDER BY dow")}
+    return render_template("day_rules.html", rows=rows, dow_jp=DOW_JP, msg=msg)
+
+
 # ── 自動生成 ──────────────────────────────────────────────────────────
 
 @app.route("/generate", methods=["GET", "POST"])
@@ -623,13 +694,17 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
     Returns: list of (date_str, slot, name, start_time, end_time, memo)
     """
     SLOT_TIMES = {
-        "A":    ("06:30", "15:00"),
-        "B":    ("09:00", "17:00"),
-        "C":    ("09:00", "17:00"),
-        "D":    ("10:00", "15:00"),
-        "M":    ("07:00", "09:00"),
+        "A":     ("06:30", "15:00"),
+        "B":     ("09:00", "17:00"),
+        "C":     ("09:00", "17:00"),
+        "D":     ("10:00", "15:00"),
+        "M":     ("07:00", "09:00"),
         "仕込み": ("09:00", "13:00"),
     }
+
+    # 曜日ごとの設定を取得
+    day_rules_rows = query("SELECT * FROM shift_day_rules ORDER BY dow")
+    day_rules = {r["dow"]: r for r in day_rules_rows}
 
     # スタッフ情報を整理
     staff_info = []
@@ -663,20 +738,25 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
         d   = date(year, month, day)
         dow = d.weekday()  # 0=月...6=日
 
-        if dow == 5:  # 土曜 → 休業
+        rule = day_rules.get(dow, {})
+        if rule.get("is_closed", dow == 5):
             continue
 
-        # 必要な枠を決定
-        if dow in (1, 2):  # 火・水 → 仕込み
-            slots_needed = ["仕込み"]
-        elif dow == 6:  # 日曜
-            slots_needed = ["A", "B", "C"]
-            if day in marche_dates:
-                slots_needed += ["M", "M"]  # M枠2名
-            else:
-                slots_needed.append("D")
-        else:  # 月・木・金
-            slots_needed = ["A", "B", "C"]
+        # 曜日設定から必要枠リストを生成
+        slots_needed = []
+        slots_needed += ["A"]    * int(rule.get("slot_a", 0) or 0)
+        slots_needed += ["B"]    * int(rule.get("slot_b", 0) or 0)
+        slots_needed += ["C"]    * int(rule.get("slot_c", 0) or 0)
+        slots_needed += ["D"]    * int(rule.get("slot_d", 0) or 0)
+        slots_needed += ["仕込み"] * int(rule.get("slot_shikomi", 0) or 0)
+        # 日曜のマルシェ日はM枠を追加
+        if dow == 6 and day in marche_dates:
+            slots_needed += ["M"] * max(int(rule.get("slot_m", 0) or 0), 2)
+        else:
+            slots_needed += ["M"] * int(rule.get("slot_m", 0) or 0)
+
+        if not slots_needed:
+            continue
 
         assigned_today = {}   # slot_key -> name
         assigned_names = set()
