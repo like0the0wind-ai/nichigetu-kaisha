@@ -518,10 +518,12 @@ def staff():
         elif action == "delete":
             sid = request.form.get("staff_id")
             name_row = query("SELECT name FROM shift_staff WHERE id=?", (sid,))
-            execute("DELETE FROM shift_records WHERE staff_id=?", (sid,))
-            execute("DELETE FROM shift_staff WHERE id=?", (sid,))
             if name_row:
-                msg = f"{name_row[0]['name']} を削除しました"
+                name = name_row[0]["name"]
+                execute("DELETE FROM shift_records WHERE staff_id=?", (sid,))
+                execute("DELETE FROM shift_requests WHERE staff_name=?", (name,))
+                execute("DELETE FROM shift_staff WHERE id=?", (sid,))
+                msg = f"{name} を削除しました"
 
     staff_rows = query("SELECT * FROM shift_staff ORDER BY id")
     return render_template("staff.html", staff_rows=staff_rows, msg=msg, error=error, colors=COLORS)
