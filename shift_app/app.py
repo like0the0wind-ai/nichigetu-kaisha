@@ -329,11 +329,11 @@ def request_delete(req_id):
 def shift_request():
     today = today_jst()
     months = []
-    for delta in range(0, 3):
-        if today.month + delta <= 12:
-            months.append(date(today.year, today.month + delta, 1))
-        else:
-            months.append(date(today.year + 1, (today.month + delta) - 12, 1))
+    for delta in range(0, 6):
+        m = today.month + delta
+        y = today.year + (m - 1) // 12
+        m = ((m - 1) % 12) + 1
+        months.append(date(y, m, 1))
 
     sel_month_str = request.args.get("month", months[0].strftime("%Y-%m"))
     try:

@@ -105,14 +105,14 @@
       </select>
 
       <label>対象月</label>
-      <div class="month-tabs">
+      <select onchange="location.href='/request?month='+this.value" style="margin-bottom:.75rem">
         {% for m in months %}
         {% set ms = m.strftime('%Y-%m') %}
-        <a href="/request?month={{ ms }}" class="month-tab {% if ms == sel_month_str %}active{% endif %}">
+        <option value="{{ ms }}" {% if ms == sel_month_str %}selected{% endif %}>
           {{ m.year }}年{{ m.month }}月
-        </a>
+        </option>
         {% endfor %}
-      </div>
+      </select>
 
       <p class="hint">休みたい日をタップしてください（複数選択可）</p>
 
