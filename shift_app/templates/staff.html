@@ -107,11 +107,6 @@
 
         <div class="fields">
           <div class="field">
-            <label>優先度（1〜10）</label>
-            <input type="number" name="priority" value="{{ s.priority or 5 }}" min="1" max="10">
-            <p class="hint">数字が大きいほど優先的に割り当て</p>
-          </div>
-          <div class="field">
             <label>入れる枠（カンマ区切り）</label>
             <input type="text" name="allowed_slots" value="{{ s.allowed_slots or '' }}" placeholder="例: A,B,C">
             <p class="hint">A=製造 B=レジ C=レジ補助 D=品出し</p>
@@ -155,6 +150,10 @@
           <label class="checkbox-row">
             <input type="checkbox" name="sun_only" {% if s.sun_only %}checked{% endif %}>
             日曜のみ出勤
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="wants_more" {% if s.wants_more %}checked{% endif %}>
+            週3以上希望（月12日以上）
           </label>
           <label class="checkbox-row">
             <input type="checkbox" name="sun_a_exclusive" {% if s.sun_a_exclusive %}checked{% endif %}>

@@ -162,7 +162,7 @@ def init_db():
             ("days_off_str",    "TEXT NOT NULL DEFAULT ''"),
             ("min_sun_days",    "INTEGER NOT NULL DEFAULT 0"),
             ("sun_only",        "INTEGER NOT NULL DEFAULT 0"),
-            ("priority",        "INTEGER NOT NULL DEFAULT 5"),
+            ("wants_more",      "INTEGER NOT NULL DEFAULT 0"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
@@ -556,15 +556,15 @@ def staff():
             sun_ok          = 1 if request.form.get("sun_ok") else 0
             sun_only        = 1 if request.form.get("sun_only") else 0
             sun_a_exclusive = 1 if request.form.get("sun_a_exclusive") else 0
-            priority        = int(request.form.get("priority", 5) or 5)
+            wants_more      = 1 if request.form.get("wants_more") else 0
             same_day_ng     = request.form.get("same_day_ng", "").strip()
             days_off_str    = request.form.get("days_off_str", "").strip()
             color           = request.form.get("color", "#c87941")
             execute(
                 "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, min_sun_days=?, wed_ok=?, sun_ok=?, "
-                "sun_only=?, sun_a_exclusive=?, priority=?, same_day_ng=?, days_off_str=? WHERE id=?",
+                "sun_only=?, sun_a_exclusive=?, wants_more=?, same_day_ng=?, days_off_str=? WHERE id=?",
                 (color, allowed_slots, max_days, min_sun_days, wed_ok, sun_ok,
-                 sun_only, sun_a_exclusive, priority, same_day_ng, days_off_str, sid)
+                 sun_only, sun_a_exclusive, wants_more, same_day_ng, days_off_str, sid)
             )
             msg = "スタッフ情報を更新しました"
 
@@ -745,7 +745,7 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
             "sun_ok":          bool(s.get("sun_ok")),
             "sun_a_exclusive": bool(s.get("sun_a_exclusive")),
             "sun_only":        bool(s.get("sun_only")),
-            "priority":        int(s.get("priority") or 5),
+            "wants_more":      bool(s.get("wants_more")),
             "same_day_ng":     same_day_ng,
             "days_off":        days_off,
         })
@@ -829,7 +829,7 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
 
             # 優先度ソート
             def priority(s):
-                ratio = work_count[s["name"]] / s["max_days"] if s["max_days"] > 0 else 0
+                cnt = work_count[s["name"]]
                 # 日曜：月1回以上 or min_sun_days 未達成のスタッフを最優先
                 sun_needed = 1
                 if dow == 6:
@@ -837,9 +837,9 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
                     sun_needed = 0 if sun_work_count[s["name"]] < min_req else 1
                 # 日曜A枠は sun_a_exclusive を優先
                 exclusive_bonus = 0 if (slot == "A" and dow == 6 and s["sun_a_exclusive"]) else 1
-                # 優先度が高いほど先に（負数で降順）
-                prio = -s["priority"]
-                return (sun_needed, exclusive_bonus, prio)
+                # 週3以上希望（月12日）のスタッフは12日に達するまで優先
+                more_needed = 0 if (s["wants_more"] and cnt < 12) else 1
+                return (sun_needed, more_needed, exclusive_bonus, cnt)
 
             eligible.sort(key=priority)
             chosen = eligible[0]["name"]
