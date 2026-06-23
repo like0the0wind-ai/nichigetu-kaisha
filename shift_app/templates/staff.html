@@ -156,6 +156,10 @@
             日曜可
           </label>
           <label class="checkbox-row">
+            <input type="checkbox" name="sun_only" {% if s.sun_only %}checked{% endif %}>
+            日曜のみ出勤
+          </label>
+          <label class="checkbox-row">
             <input type="checkbox" name="sun_a_exclusive" {% if s.sun_a_exclusive %}checked{% endif %}>
             日曜A枠専任
           </label>

@@ -161,6 +161,7 @@ def init_db():
             ("same_day_ng",     "TEXT NOT NULL DEFAULT ''"),
             ("days_off_str",    "TEXT NOT NULL DEFAULT ''"),
             ("min_sun_days",    "INTEGER NOT NULL DEFAULT 0"),
+            ("sun_only",        "INTEGER NOT NULL DEFAULT 0"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
@@ -552,15 +553,16 @@ def staff():
             min_sun_days    = int(request.form.get("min_sun_days", 0) or 0)
             wed_ok          = 1 if request.form.get("wed_ok") else 0
             sun_ok          = 1 if request.form.get("sun_ok") else 0
+            sun_only        = 1 if request.form.get("sun_only") else 0
             sun_a_exclusive = 1 if request.form.get("sun_a_exclusive") else 0
             same_day_ng     = request.form.get("same_day_ng", "").strip()
             days_off_str    = request.form.get("days_off_str", "").strip()
             color           = request.form.get("color", "#c87941")
             execute(
                 "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, min_sun_days=?, wed_ok=?, sun_ok=?, "
-                "sun_a_exclusive=?, same_day_ng=?, days_off_str=? WHERE id=?",
+                "sun_only=?, sun_a_exclusive=?, same_day_ng=?, days_off_str=? WHERE id=?",
                 (color, allowed_slots, max_days, min_sun_days, wed_ok, sun_ok,
-                 sun_a_exclusive, same_day_ng, days_off_str, sid)
+                 sun_only, sun_a_exclusive, same_day_ng, days_off_str, sid)
             )
             msg = "スタッフ情報を更新しました"
 
@@ -740,6 +742,7 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
             "wed_ok":          bool(s.get("wed_ok")),
             "sun_ok":          bool(s.get("sun_ok")),
             "sun_a_exclusive": bool(s.get("sun_a_exclusive")),
+            "sun_only":        bool(s.get("sun_only")),
             "same_day_ng":     same_day_ng,
             "days_off":        days_off,
         })
@@ -787,6 +790,9 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
                 if day in s["days_off"]:
                     continue
                 if s["max_days"] > 0 and work_count[name] >= s["max_days"]:
+                    continue
+                # 日曜のみ出勤スタッフは日曜以外スキップ
+                if s["sun_only"] and dow != 6:
                     continue
 
                 # 枠適格チェック
