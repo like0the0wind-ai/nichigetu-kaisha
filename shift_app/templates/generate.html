@@ -121,6 +121,7 @@
           <th>対象月</th>
           <th>休み希望日</th>
           <th>提出日時</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -130,6 +131,12 @@
           <td>{{ r.month }}</td>
           <td>{{ r.days_off_str or 'なし' }}</td>
           <td style="font-size:.75rem;color:#9a7a5a">{{ r.submitted_at[:16] if r.submitted_at else '' }}</td>
+          <td>
+            <form method="post" action="/request/delete/{{ r.id }}" style="margin:0"
+                  onsubmit="return confirm('{{ r.staff_name }} の希望を削除しますか？')">
+              <button type="submit" style="background:#e05050;color:#fff;border:none;border-radius:5px;padding:.2rem .5rem;font-size:.75rem;cursor:pointer">削除</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

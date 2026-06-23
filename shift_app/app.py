@@ -312,6 +312,17 @@ def index():
     )
 
 
+# ── シフト希望削除 ───────────────────────────────────────────────────────
+
+@app.route("/request/delete/<int:req_id>", methods=["POST"])
+def request_delete(req_id):
+    r = require_login()
+    if r:
+        return r
+    execute("DELETE FROM shift_requests WHERE id=?", (req_id,))
+    return redirect(url_for("generate"))
+
+
 # ── シフト希望ページ ────────────────────────────────────────────────────
 
 @app.route("/request", methods=["GET", "POST"])
