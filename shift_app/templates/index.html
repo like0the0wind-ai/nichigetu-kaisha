@@ -193,33 +193,43 @@
   </div>
 
   <!-- ③ 管理者ログイン -->
-  <div class="card" id="login">
-    <h2 class="section-title">🔐 管理者ログイン</h2>
+  {% if is_admin %}
+  <div class="card" style="text-align:center">
+    <h2 class="section-title">🔐 管理者</h2>
+    <a href="/admin" class="btn" style="display:inline-block;width:auto;padding:.65rem 1.8rem;text-decoration:none;margin-bottom:.5rem">管理者画面へ →</a><br>
+    <a href="/logout" style="font-size:.82rem;color:#e05050;text-decoration:none">ログアウト</a>
+  </div>
+  {% else %}
+  <div style="text-align:center;margin-bottom:1.5rem">
+    <button onclick="toggleLogin()" id="loginToggleBtn"
+      style="background:none;border:1px solid #c8a878;border-radius:8px;padding:.45rem 1.2rem;font-size:.82rem;color:#9a7a5a;cursor:pointer;font-family:inherit">
+      🔐 管理者ログイン
+    </button>
+  </div>
+  <div class="card" id="loginCard" style="display:none">
     {% if login_error %}<div class="error-box">{{ login_error }}</div>{% endif %}
     <div class="login-area">
       <p>管理者のみシフト編集・自動生成ができます</p>
       <form method="post">
         <input type="hidden" name="action" value="login">
         <div class="login-row">
-          <input type="password" name="password" placeholder="パスワード" required>
+          <input type="password" name="password" placeholder="パスワード" required autofocus>
           <button type="submit" class="btn btn-login">ログイン</button>
         </div>
       </form>
-      {% if is_admin %}
-      <a href="/admin" class="admin-link">管理者画面へ →</a>
-      <a href="/logout" class="admin-link" style="color:#e05050">ログアウト</a>
-      {% endif %}
     </div>
   </div>
+  {% endif %}
 
   <script>
-    const boxes = document.querySelectorAll('input[name="days_off"]');
-    const info  = document.getElementById('selInfo');
-    function upd() {
-      const c = [...boxes].filter(b=>b.checked).map(b=>b.value+'日');
-      info.textContent = c.length ? '休み希望：'+c.join('、') : '選択なし';
+    function toggleLogin() {
+      const card = document.getElementById('loginCard');
+      const btn  = document.getElementById('loginToggleBtn');
+      const open = card.style.display === 'none';
+      card.style.display = open ? 'block' : 'none';
+      btn.textContent = open ? '✕ 閉じる' : '🔐 管理者ログイン';
     }
-    boxes.forEach(b => b.addEventListener('change', upd));
+    {% if login_error %}toggleLogin();{% endif %}
   </script>
 </body>
 </html>
