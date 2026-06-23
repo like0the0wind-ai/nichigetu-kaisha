@@ -341,6 +341,7 @@ def shift_request():
     except Exception:
         sel_year, sel_month = today.year, today.month
     days_in_month = calendar.monthrange(sel_year, sel_month)[1]
+    cal_offset = date(sel_year, sel_month, 1).weekday()  # 0=月, 6=日
 
     msg = error = None
     if request.method == "POST":
@@ -378,6 +379,7 @@ def shift_request():
         months=months, sel_month_str=sel_month_str,
         sel_year=sel_year, sel_month=sel_month,
         days_in_month=days_in_month,
+        cal_offset=cal_offset,
         msg=msg, error=error,
     )
 
