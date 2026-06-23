@@ -153,7 +153,6 @@
           <th>名前</th>
           <th>入れる枠</th>
           <th>火・水可</th>
-          <th>日曜可</th>
           <th>日曜のみ</th>
           <th>日曜A専任</th>
           <th>同日NG</th>
@@ -169,7 +168,6 @@
           </td>
           <td>{{ s.allowed_slots or '—' }}</td>
           <td class="{% if s.wed_ok %}ok{% else %}ng{% endif %}">{% if s.wed_ok %}✓{% else %}—{% endif %}</td>
-          <td class="{% if s.sun_ok %}ok{% else %}ng{% endif %}">{% if s.sun_ok %}✓{% else %}—{% endif %}</td>
           <td class="{% if s.sun_only %}ok{% else %}ng{% endif %}">{% if s.sun_only %}✓{% else %}—{% endif %}</td>
           <td class="{% if s.sun_a_exclusive %}ok{% else %}ng{% endif %}">{% if s.sun_a_exclusive %}✓{% else %}—{% endif %}</td>
           <td>{{ s.same_day_ng or '—' }}</td>

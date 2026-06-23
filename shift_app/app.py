@@ -803,21 +803,13 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
                         "B" in s["allowed_slots"] or "C" in s["allowed_slots"]
                     )
                 elif slot == "A":
-                    if dow == 6:  # 日曜A
-                        ok = "A" in s["allowed_slots"] and s["sun_ok"]
-                    else:
-                        ok = "A" in s["allowed_slots"]
+                    ok = "A" in s["allowed_slots"]
                 elif slot == "M":
-                    ok = s["sun_ok"] and (
-                        "B" in s["allowed_slots"] or "C" in s["allowed_slots"] or "A" in s["allowed_slots"]
-                    )
+                    ok = "B" in s["allowed_slots"] or "C" in s["allowed_slots"] or "A" in s["allowed_slots"]
                 elif slot in ("B", "C"):
-                    if dow == 6:
-                        ok = slot in s["allowed_slots"] and s["sun_ok"]
-                    else:
-                        ok = slot in s["allowed_slots"]
+                    ok = slot in s["allowed_slots"]
                 elif slot == "D":
-                    ok = "D" in s["allowed_slots"] and s["sun_ok"]
+                    ok = "D" in s["allowed_slots"]
 
                 if not ok:
                     continue
