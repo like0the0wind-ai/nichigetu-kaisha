@@ -827,12 +827,11 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
             # 優先度ソート
             def priority(s):
                 ratio = work_count[s["name"]] / s["max_days"] if s["max_days"] > 0 else 0
-                # 日曜最低出勤未達成のスタッフを最優先
-                sun_needed = 0
-                if dow == 6 and s["min_sun_days"] > 0:
-                    sun_needed = 0 if sun_work_count[s["name"]] < s["min_sun_days"] else 1
-                else:
-                    sun_needed = 1
+                # 日曜：月1回以上 or min_sun_days 未達成のスタッフを最優先
+                sun_needed = 1
+                if dow == 6:
+                    min_req = max(s["min_sun_days"], 1)  # 最低1回は日曜に入れる
+                    sun_needed = 0 if sun_work_count[s["name"]] < min_req else 1
                 # 日曜A枠は sun_a_exclusive を優先
                 exclusive_bonus = 0 if (slot == "A" and dow == 6 and s["sun_a_exclusive"]) else 1
                 return (sun_needed, exclusive_bonus, ratio)
