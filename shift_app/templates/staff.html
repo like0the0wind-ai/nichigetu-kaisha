@@ -112,10 +112,6 @@
             <p class="hint">A=製造 B=レジ C=レジ補助 D=品出し</p>
           </div>
           <div class="field">
-            <label>月間出勤上限日数</label>
-            <input type="number" name="max_days" value="{{ s.max_days or 0 }}" min="0" max="31">
-          </div>
-          <div class="field">
             <label>日曜最低出勤回数</label>
             <input type="number" name="min_sun_days" value="{{ s.min_sun_days or 0 }}" min="0" max="5">
             <p class="hint">例: 1 → 月に必ず1回以上日曜に入る</p>

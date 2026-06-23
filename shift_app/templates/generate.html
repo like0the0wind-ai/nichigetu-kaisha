@@ -152,7 +152,6 @@
         <tr>
           <th>名前</th>
           <th>入れる枠</th>
-          <th>上限日数</th>
           <th>火・水可</th>
           <th>日曜可</th>
           <th>日曜のみ</th>
@@ -169,7 +168,6 @@
             {{ s.name }}
           </td>
           <td>{{ s.allowed_slots or '—' }}</td>
-          <td>{{ s.max_days or '—' }}</td>
           <td class="{% if s.wed_ok %}ok{% else %}ng{% endif %}">{% if s.wed_ok %}✓{% else %}—{% endif %}</td>
           <td class="{% if s.sun_ok %}ok{% else %}ng{% endif %}">{% if s.sun_ok %}✓{% else %}—{% endif %}</td>
           <td class="{% if s.sun_only %}ok{% else %}ng{% endif %}">{% if s.sun_only %}✓{% else %}—{% endif %}</td>
