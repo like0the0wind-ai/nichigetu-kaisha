@@ -12,7 +12,14 @@
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
       color: #3a2010; padding: 1rem;
     }
-    h1 { font-size: 1.15rem; letter-spacing: .15em; color: #7a4010; text-align: center; margin-bottom: 1rem; }
+    .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    h1 { font-size: 1.15rem; letter-spacing: .15em; color: #7a4010; }
+    .btn-request {
+      background: #6ab04c; color: #fff; border: none; border-radius: 8px;
+      padding: .5rem 1rem; font-size: .85rem; font-family: inherit;
+      cursor: pointer; text-decoration: none; white-space: nowrap;
+    }
+    .btn-request:hover { background: #4a9030; }
     .section-title {
       font-size: .95rem; color: #7a4010; font-weight: normal;
       letter-spacing: .1em; margin-bottom: .75rem;
@@ -125,7 +132,10 @@
 </head>
 <body>
 
-  <h1>📅 ニチゲツ シフト</h1>
+  <div class="top-bar">
+    <h1>📅 ニチゲツ シフト</h1>
+    <a href="/request" class="btn-request">📝 シフト希望を出す</a>
+  </div>
 
   <!-- ① シフトカレンダー -->
   <div class="card">
@@ -185,14 +195,7 @@
     {% endif %}
   </div>
 
-  <!-- ② シフト希望 -->
-  <div class="card" style="text-align:center">
-    <h2 class="section-title">📝 シフト希望を出す</h2>
-    <p style="font-size:.88rem;color:#9a7a5a;margin-bottom:1rem">休みたい日を登録できます</p>
-    <a href="/request" class="btn btn-sub" style="display:inline-block;width:auto;padding:.75rem 2rem;text-decoration:none;border-radius:10px">シフト希望を入力する →</a>
-  </div>
-
-  <!-- ③ 管理者ログイン -->
+  <!-- ② 管理者ログイン -->
   {% if is_admin %}
   <div class="card" style="text-align:center">
     <h2 class="section-title">🔐 管理者</h2>
