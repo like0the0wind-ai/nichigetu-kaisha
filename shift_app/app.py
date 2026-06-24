@@ -842,9 +842,12 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
                     sun_needed = 0 if sun_work_count[s["name"]] < min_req else 1
                 # 日曜A枠は sun_a_exclusive を優先
                 exclusive_bonus = 0 if (slot == "A" and dow == 6 and s["sun_a_exclusive"]) else 1
-                # 週3以上希望（月12日）のスタッフは12日に達するまで優先
-                more_needed = 0 if (s["wants_more"] and cnt < 12) else 1
-                return (sun_needed, more_needed, exclusive_bonus, cnt)
+                # 週3以上希望のスタッフを常に優先（12日未達なら最優先、達成後も優先）
+                if s["wants_more"]:
+                    more_needed = 0 if cnt < 12 else 1
+                else:
+                    more_needed = 2
+                return (more_needed, sun_needed, exclusive_bonus, cnt)
 
             eligible.sort(key=priority)
             chosen = eligible[0]["name"]
