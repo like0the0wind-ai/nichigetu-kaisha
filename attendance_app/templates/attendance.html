@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出退勤明細 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+    }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+
+    .period-form {
+      background: rgba(255,255,255,0.75); border: 1px solid #c8a878; border-radius: 12px;
+      padding: 1rem; margin-bottom: 1.25rem;
+      display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+    }
+    .period-form label { font-size: .85rem; color: #7a4010; white-space: nowrap; }
+    input[type=date] {
+      padding: .45rem .7rem; background: #faf5ee;
+      border: 1px solid #c8a878; border-radius: 8px; color: #3a2010; font-size: .9rem;
+    }
+    .sep { color: #9a6a3a; }
+    .btn { padding: .5rem 1.1rem; background: #c87941; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .9rem; font-family: inherit; }
+    .period-label { font-size: .8rem; color: #9a6a3a; width: 100%; margin-top: -.2rem; }
+
+    .tc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .tc-card {
+      background: rgba(255,255,255,0.85); border: 1px solid #c8a878;
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 2px 10px rgba(120,70,20,.08);
+    }
+    .tc-header {
+      background: #c8a878; padding: .6rem 1rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tc-name { font-size: 1rem; font-weight: bold; color: #3a2010; }
+    .tc-summary { font-size: .78rem; color: #5a3010; }
+    .tc-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .tc-table th {
+      background: #f0e4d0; padding: .4rem .6rem;
+      color: #7a4010; font-weight: normal; font-size: .75rem;
+      border-bottom: 1px solid #d4b896; text-align: center;
+    }
+    .tc-table td { padding: .4rem .6rem; border-bottom: 1px solid #f0e4d0; text-align: center; }
+    .tc-table tr:last-child td { border-bottom: none; }
+    .tc-table tr:hover td { background: #faf5ee; }
+    .tc-total {
+      background: #faf5ee; border-top: 2px solid #c8a878;
+      padding: .5rem 1rem; display: flex; justify-content: space-between;
+      font-size: .82rem; color: #7a4010;
+    }
+    .tc-total strong { color: #c87941; }
+    .tc-actions { display: flex; gap: 4px; justify-content: center; }
+    .badge-working { background: #4a7a4a; color: #fff;
+      padding: .15rem .55rem; border-radius: 20px; font-size: .75rem; }
+    .edit-btn {
+      background: none; border: 1px solid #c8a878; color: #7a4010;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer;
+      font-size: .75rem; text-decoration: none;
+    }
+    .del-btn {
+      background: none; border: 1px solid #c09080; color: #a06050;
+      border-radius: 6px; padding: .2rem .55rem; cursor: pointer; font-size: .75rem;
+    }
+    .btn-add {
+      padding: .5rem 1rem; background: #4a7a4a; color: #fff;
+      border-radius: 8px; text-decoration: none; font-size: .9rem; white-space: nowrap;
+    }
+    .btn-add:hover { opacity: .85; }
+    .btn-export {
+      padding: .5rem 1rem; background: #3a5a9a; color: #fff;
+      border-radius: 8px; text-decoration: none; font-size: .9rem; white-space: nowrap;
+    }
+    .btn-export:hover { opacity: .85; }
+    .empty { text-align: center; color: #9a7a5a; padding: 2.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>出退勤明細</h1>
+    <a class="back" href="/admin">← 管理者画面</a>
+  </header>
+
+  <form class="period-form" method="get">
+    <label>期間</label>
+    <input type="date" id="df" name="from" value="{{ date_from }}">
+    <span class="sep">〜</span>
+    <input type="date" name="to" value="{{ date_to }}">
+    <button class="btn" type="submit">表示</button>
+    <a class="btn-add" href="/admin/add?back=/admin/attendance%3Ffrom={{ date_from }}%26to={{ date_to }}">＋ 打刻追加</a>
+    <a id="link-export" class="btn-export"
+       href="/admin/export/monthly?year={{ date_from[:4] }}&month={{ date_from[5:7] }}">📥 月次Excel</a>
+    <div class="period-label">給与期間: {{ period_label }}</div>
+  </form>
+  <script>
+  document.getElementById('df').addEventListener('change', function() {
+    var v = this.value;
+    if (v.length >= 7) {
+      document.getElementById('link-export').href =
+        '/admin/export/monthly?year=' + v.slice(0,4) + '&month=' + v.slice(5,7);
+    }
+  });
+  </script>
+
+  {% if staff_records %}
+  <div class="tc-grid">
+    {% for s in staff_records %}
+    <div class="tc-card">
+      <div class="tc-header">
+        <span class="tc-name">{{ s.name }}</span>
+        <span class="tc-summary">{{ s.records|length }}日出勤</span>
+      </div>
+      <table class="tc-table">
+        <thead>
+          <tr><th>日付</th><th>出勤</th><th>退勤</th><th>実働</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for r in s.records %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td>{{ r.clock_in }}</td>
+            <td>{{ r.clock_out }}</td>
+            <td>{% if r.clock_out == '—' %}<span class="badge-working">出勤中</span>{% else %}{{ r.work }}{% endif %}</td>
+            <td>
+              <div class="tc-actions">
+                <a href="/admin/edit/{{ r.id }}" class="edit-btn">修正</a>
+                <form method="post" action="/admin/delete/{{ r.id }}"
+                      onsubmit="return confirm('削除しますか？')" style="display:inline">
+                  <button class="del-btn" type="submit">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% set total = namespace(min=0, over=0) %}
+      {% for r in s.records %}
+        {% set total.min = total.min + r.work_min %}
+        {% set total.over = total.over + r.over_min %}
+      {% endfor %}
+      <div class="tc-total">
+        <span>合計：<strong>{{ (total.min // 60) }}h{{ '%02d'|format(total.min % 60) }}m</strong></span>
+        {% if total.over > 0 %}<span>残業：<strong>{{ (total.over // 60) }}h{{ '%02d'|format(total.over % 60) }}m</strong></span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">この期間の記録はありません</div>
+  {% endif %}
+</body>
+</html>

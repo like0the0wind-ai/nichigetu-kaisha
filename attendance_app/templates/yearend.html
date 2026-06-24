@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>年末調整 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010; padding: 1.5rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem; }
+    h1 { font-size: 1.1rem; letter-spacing: .15em; color: #7a4010; }
+    .back { color: #9a6a3a; font-size: .8rem; text-decoration: none; }
+
+    .year-form { display: flex; gap: .6rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    select { padding: .5rem .9rem; background: #faf5ee; border: 1px solid #c8a878; border-radius: 8px; color: #3a2010; font-size: 1rem; font-family: inherit; }
+    .btn { padding: .55rem 1.2rem; background: #c87941; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: .9rem; font-family: inherit; }
+
+    .notice {
+      background: rgba(255,255,255,0.7); border: 1px solid #c8a878; border-radius: 12px;
+      padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-size: .85rem; color: #5a3010; line-height: 1.7;
+    }
+
+    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .staff-card {
+      background: rgba(255,255,255,0.8); border: 1px solid #c8a878;
+      border-radius: 14px; padding: 1.1rem;
+      box-shadow: 0 2px 10px rgba(120,70,20,.08);
+    }
+    .card-name { font-size: 1rem; font-weight: bold; color: #3a2010; margin-bottom: .6rem; }
+    .badge-done { display: inline-block; background: #3a7a3a; color: #fff; font-size: .7rem; padding: .1rem .5rem; border-radius: 10px; margin-left: .4rem; }
+    .badge-todo { display: inline-block; background: #aaa; color: #fff; font-size: .7rem; padding: .1rem .5rem; border-radius: 10px; margin-left: .4rem; }
+
+    .mini-result { margin: .5rem 0 .8rem; font-size: .82rem; }
+    .mini-row { display: flex; justify-content: space-between; color: #7a4010; padding: .2rem 0; border-bottom: 1px dotted #e8d5b5; }
+    .mini-row:last-child { border-bottom: none; }
+    .refund  { color: #3a7a3a; font-weight: bold; }
+    .collect { color: #c03030; font-weight: bold; }
+
+    .btn-detail {
+      display: block; text-align: center; background: #c87941; color: #fff;
+      padding: .5rem; border-radius: 8px; text-decoration: none; font-size: .88rem; margin-top: .4rem;
+    }
+    .btn-detail:hover { opacity: .85; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📋 年末調整 — ニチゲツ</h1>
+    <a class="back" href="/admin">← 管理者画面</a>
+  </header>
+
+  <form class="year-form" method="get">
+    <label style="font-size:.9rem;color:#7a4010">対象年：</label>
+    <select name="year">
+      {% for y in years %}
+      <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}年（令和{{ y - 2018 }}年）</option>
+      {% endfor %}
+    </select>
+    <button class="btn" type="submit">表示</button>
+  </form>
+
+  <div class="notice">
+    📌 <strong>年末調整の流れ</strong>：各スタッフの控除情報を入力 → 確定税額を計算 → 源泉徴収票をExcel出力<br>
+    源泉徴収税額は毎月の給与明細から合算した額を入力してください。<br>
+    還付（緑）の場合は12月給与で精算、追徴（赤）の場合はスタッフから回収してください。
+  </div>
+
+  {% if items %}
+  <div class="staff-grid">
+    {% for item in items %}
+    <div class="staff-card">
+      <div class="card-name">
+        {{ item.name }}
+        {% if item.done %}<span class="badge-done">入力済</span>{% else %}<span class="badge-todo">未入力</span>{% endif %}
+      </div>
+
+      {% if item.calc %}
+      {% set r = item.calc %}
+      <div class="mini-result">
+        <div class="mini-row"><span>年間総支給</span><span>{{ "{:,}".format(r.gross) }}円</span></div>
+        <div class="mini-row"><span>課税所得</span><span>{{ "{:,}".format(r.taxable) }}円</span></div>
+        <div class="mini-row"><span>確定年税額</span><span>{{ "{:,}".format(r.year_tax) }}円</span></div>
+        <div class="mini-row">
+          <span>差引</span>
+          <span class="{% if r.diff >= 0 %}refund{% else %}collect{% endif %}">
+            {% if r.diff >= 0 %}還付 {{ "{:,}".format(r.diff) }}円{% else %}追徴 {{ "{:,}".format(-r.diff) }}円{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endif %}
+
+      <a class="btn-detail" href="/admin/yearend/{{ year }}/{{ item.name }}">
+        {% if item.done %}修正・詳細{% else %}控除情報を入力{% endif %}
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;color:#9a7a5a;padding:3rem">スタッフが登録されていません</div>
+  {% endif %}
+</body>
+</html>

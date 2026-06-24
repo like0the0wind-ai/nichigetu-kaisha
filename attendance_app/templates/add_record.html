@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>打刻追加 | ニチゲツ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem 1rem;
+    }
+    h1 { font-size: 1.1rem; color: #7a4010; letter-spacing: .2em; margin-bottom: 1.5rem; }
+    .card {
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #c8a878; border-radius: 16px;
+      padding: 2rem; width: min(440px, 95vw);
+      box-shadow: 0 4px 20px rgba(120,70,20,.12);
+    }
+    .notice {
+      background: #faf5ee; border: 1px solid #c8a878; border-radius: 8px;
+      padding: .7rem 1rem; font-size: .8rem; color: #7a4010;
+      margin-bottom: 1.25rem; line-height: 1.6;
+    }
+    .field { margin-bottom: 1.1rem; }
+    label { display: block; font-size: .82rem; color: #7a4010; margin-bottom: .35rem; }
+    select, input[type=datetime-local], input[type=number] {
+      width: 100%; padding: .65rem .9rem;
+      background: #faf5ee; border: 1px solid #c8a878;
+      border-radius: 8px; color: #3a2010; font-size: .95rem;
+      font-family: inherit;
+    }
+    .hint { font-size: .72rem; color: #9a6a3a; margin-top: .25rem; }
+    .btns { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    .btn-save {
+      flex: 1; padding: .8rem; background: #c87941; color: #fff;
+      border: none; border-radius: 10px; font-size: .95rem;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-cancel {
+      flex: 1; padding: .8rem; background: #e8d5b5; color: #7a4010;
+      border: none; border-radius: 10px; font-size: .95rem;
+      cursor: pointer; font-family: inherit;
+      text-decoration: none; text-align: center; line-height: 1.4;
+    }
+    .error {
+      background: #fde8e0; border: 1px solid #e8a090;
+      border-radius: 8px; padding: .75rem 1rem;
+      color: #c03020; font-size: .88rem; margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>打刻を追加</h1>
+  <div class="card">
+    <div class="notice">
+      📌 過去の打刻漏れや修正が必要な場合に使用してください。<br>
+      勤務時間・残業は保存後に自動計算されます。
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <input type="hidden" name="back" value="{{ back }}">
+
+      <div class="field">
+        <label>スタッフ名</label>
+        <select name="name" required>
+          <option value="">— 選択 —</option>
+          {% for s in staff_rows %}
+          <option value="{{ s.name }}" {% if s.name == prefill_name %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>出勤日時</label>
+        <input type="datetime-local" name="clock_in"
+               value="{{ prefill_date }}T09:00" required>
+      </div>
+
+      <div class="field">
+        <label>退勤日時（未退勤の場合は空欄）</label>
+        <input type="datetime-local" name="clock_out"
+               value="{{ prefill_date }}T17:00">
+      </div>
+
+      <div class="field">
+        <label>休憩時間（分）</label>
+        <input type="number" name="break_min" min="0" value="0">
+        <div class="hint">例：60分休憩の場合は 60 と入力</div>
+      </div>
+
+      <div class="btns">
+        <button class="btn-save" type="submit">追加する</button>
+        <a class="btn-cancel" href="{{ back or '/admin/attendance' }}">キャンセル</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
