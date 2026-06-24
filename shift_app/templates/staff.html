@@ -137,6 +137,10 @@
             週3以上希望（月12日以上）
           </label>
           <label class="checkbox-row">
+            <input type="checkbox" name="sun_undecided" {% if s.sun_undecided %}checked{% endif %}>
+            日曜未定（日曜は優先度低め）
+          </label>
+          <label class="checkbox-row">
             <input type="checkbox" name="sun_a_exclusive" {% if s.sun_a_exclusive %}checked{% endif %}>
             日曜A枠専任
           </label>
