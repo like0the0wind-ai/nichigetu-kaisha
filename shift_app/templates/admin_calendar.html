@@ -87,6 +87,12 @@
     <span class="month-label">{{ month_name }}</span>
     <a href="/admin?year={{ next_year }}&month={{ next_month }}">次月 ▶</a>
     <a href="/admin?year={{ today.year }}&month={{ today.month }}" style="font-size:.78rem">今月</a>
+    <form method="post" action="/shift/clear-month" style="display:inline;margin:0"
+          onsubmit="return confirm('{{ month_name }} のシフトをすべて削除しますか？');">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      <button type="submit" style="background:#e05050;color:#fff;border:none;border-radius:8px;padding:.3rem .8rem;font-size:.78rem;font-family:inherit;cursor:pointer">🗑 この月を全削除</button>
+    </form>
   </div>
 
   {% if staff_rows %}
