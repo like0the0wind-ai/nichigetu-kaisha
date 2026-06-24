@@ -2,15 +2,22 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="シフト希望">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#c87941">
   <title>シフト希望 | ニチゲツ</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
       min-height: 100vh;
       background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
-      color: #3a2010; padding: 1.5rem 1rem;
+      color: #3a2010;
+      padding: calc(1.5rem + env(safe-area-inset-top)) 1rem calc(1.5rem + env(safe-area-inset-bottom));
+      -webkit-text-size-adjust: 100%;
     }
     header { text-align: center; margin-bottom: 1.5rem; }
     h1 { font-size: 1.2rem; letter-spacing: .15em; color: #7a4010; margin-bottom: .3rem; }
@@ -77,6 +84,17 @@
     .admin-link { text-align: center; margin-top: 1rem; }
     .admin-link a { font-size: .8rem; color: #9a7a5a; text-decoration: none; }
     .admin-link a:hover { color: #c87941; }
+
+    /* ── スマホ最適化 ── */
+    @media (max-width: 480px) {
+      body { padding: calc(1rem + env(safe-area-inset-top)) .7rem calc(1rem + env(safe-area-inset-bottom)); }
+      .card { padding: 1rem; border-radius: 12px; }
+      .cal-grid { gap: 5px; }
+      .day-cell label { height: 46px; font-size: 1rem; border-radius: 10px; }
+      select { padding: .75rem .8rem; font-size: 1rem; }
+      .month-tab { padding: .5rem 1rem; font-size: .9rem; }
+      .btn { padding: .95rem; font-size: 1.05rem; border-radius: 12px; }
+    }
   </style>
 </head>
 <body>

@@ -2,15 +2,22 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ニチゲツシフト">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#c87941">
   <title>シフト管理 | ニチゲツ</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
       min-height: 100vh;
       background: linear-gradient(160deg, #f5ede0 0%, #e8d5b5 50%, #d4b896 100%);
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
-      color: #3a2010; padding: 1rem;
+      color: #3a2010;
+      padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+      -webkit-text-size-adjust: 100%;
     }
     .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
     h1 { font-size: 1.15rem; letter-spacing: .15em; color: #7a4010; }
@@ -137,6 +144,25 @@
     .btn-login:hover { background: #5a2a00; }
     .admin-link { display: block; text-align: center; margin-top: .5rem; font-size: .78rem; color: #9a7a5a; text-decoration: none; }
     .admin-link:hover { color: #c87941; }
+
+    /* ── スマホ最適化 ── */
+    @media (max-width: 480px) {
+      body { padding: calc(.6rem + env(safe-area-inset-top)) .6rem calc(.6rem + env(safe-area-inset-bottom)); }
+      h1 { font-size: 1.05rem; }
+      .btn-request { padding: .6rem 1rem; font-size: .9rem; border-radius: 10px; }
+      .card { padding: .8rem; border-radius: 12px; margin-bottom: 1rem; }
+      /* 月ナビの◀▶を大きく押しやすく */
+      .month-nav a { padding: .5rem 1.1rem; font-size: 1.05rem; }
+      .month-label { font-size: 1.05rem; }
+      /* カレンダーのマス・文字を拡大 */
+      .cal-table { min-width: 0; }
+      .cal-table th { padding: .5rem .2rem; font-size: .82rem; }
+      .cal-table td { min-height: 64px; padding: .2rem; }
+      .day-num { font-size: .82rem; }
+      .shift-chip { font-size: .62rem; padding: .15rem .25rem; }
+      /* フィルターボタンを押しやすく */
+      .filter-btn { padding: .4rem .75rem; font-size: .82rem; }
+    }
   </style>
 </head>
 <body>
