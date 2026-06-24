@@ -413,7 +413,7 @@ def admin():
             emp.setdefault("other_income", 0)
             emp.setdefault("fuyou_category", "103")
         category = (emp["fuyou_category"] if emp and emp.get("fuyou_category") else "103")
-        fuyou_limit = FUYOU_LIMITS.get(category, FUYOU_LIMITS["103"])
+        fuyou_limit = FUYOU_LIMITS.get(category) if category != "none" else None
 
         # 年間レコード取得（記録ごとに当時の時給・設定を使って計算）
         yr_rows = query(
@@ -441,8 +441,12 @@ def admin():
 
         other_income = int(emp["other_income"] or 0) if emp else 0
         year_total += other_income
-        remaining = fuyou_limit - year_total
-        pct = min(100, int(year_total / fuyou_limit * 100))
+        if fuyou_limit:
+            remaining = fuyou_limit - year_total
+            pct = min(100, int(year_total / fuyou_limit * 100))
+        else:
+            remaining = None
+            pct = 0
 
         staff_summary.append({
             "name": n, "days": s["days"],
@@ -1814,7 +1818,7 @@ def admin_employee_save():
     other        = int(request.form.get("other_allowance", 0) or 0)
     other_income = int(request.form.get("other_income", 0) or 0)
     fuyou_category = request.form.get("fuyou_category", "103")
-    if fuyou_category not in ("103", "123"):
+    if fuyou_category not in ("103", "123", "none"):
         fuyou_category = "103"
     notes        = request.form.get("notes", "").strip()
 
@@ -1847,7 +1851,7 @@ def admin_employee_save():
 @admin_required
 def admin_employee_fuyou(emp_id):
     category = request.form.get("fuyou_category", "103")
-    if category not in ("103", "123"):
+    if category not in ("103", "123", "none"):
         category = "103"
     emp = query("SELECT * FROM employees WHERE id=?", (emp_id,))
     if emp:

@@ -291,6 +291,7 @@
               <select name="fuyou_category" class="btn-sm">
                 <option value="103" {% if (e.fuyou_category or '103') == '103' %}selected{% endif %}>103万</option>
                 <option value="123" {% if e.fuyou_category == '123' %}selected{% endif %}>123万</option>
+                <option value="none" {% if e.fuyou_category == 'none' %}selected{% endif %}>扶養控除なし</option>
               </select>
             </form>
           </td>
@@ -341,6 +342,7 @@
           <select name="fuyou_category" id="m-fuyou-category">
             <option value="103">103万</option>
             <option value="123">123万</option>
+            <option value="none">扶養控除なし</option>
           </select>
         </div>
         <div class="form-row">
