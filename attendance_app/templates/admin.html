@@ -150,17 +150,15 @@
       <div class="card-total">{{ s.total }}</div>
       {% if s.overtime != '—' %}<div class="card-over">残業 {{ s.overtime }}</div>{% endif %}
       <div class="card-days">{{ s.days }}日出勤</div>
-      {% if s.fuyou_target %}
       <div class="fuyou-bar-wrap">
         <div class="fuyou-bar {% if s.pct >= 90 %}warn{% endif %}" style="width:{{ s.pct }}%"></div>
       </div>
       <div class="fuyou-label">
-        年収 {{ "{:,}".format(s.year_total) }}円 &nbsp;/&nbsp; 130万円まで
+        年収 {{ "{:,}".format(s.year_total) }}円 &nbsp;/&nbsp; {{ s.fuyou_category }}万円まで
         <span class="fuyou-remain {% if s.remaining < 0 %}over{% endif %}">
           {% if s.remaining >= 0 %}残り {{ "{:,}".format(s.remaining) }}円{% else %}超過 {{ "{:,}".format(-s.remaining) }}円{% endif %}
         </span>
       </div>
-      {% endif %}
       <a class="payslip-link"
          href="/admin/payslip?name={{ s.name }}&from={{ date_from }}&to={{ date_to }}">
         給与明細を見る
