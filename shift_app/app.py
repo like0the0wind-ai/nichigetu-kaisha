@@ -164,6 +164,9 @@ def init_db():
             ("sun_only",        "INTEGER NOT NULL DEFAULT 0"),
             ("wants_more",      "INTEGER NOT NULL DEFAULT 0"),
             ("sun_undecided",   "INTEGER NOT NULL DEFAULT 0"),
+            ("avail_start",     "INTEGER NOT NULL DEFAULT 0"),
+            ("avail_end",       "INTEGER NOT NULL DEFAULT 0"),
+            ("avail_limit",     "INTEGER NOT NULL DEFAULT 0"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
@@ -559,14 +562,19 @@ def staff():
             sun_a_exclusive = 1 if request.form.get("sun_a_exclusive") else 0
             wants_more      = 1 if request.form.get("wants_more") else 0
             sun_undecided   = 1 if request.form.get("sun_undecided") else 0
+            avail_start     = int(request.form.get("avail_start", 0) or 0)
+            avail_end       = int(request.form.get("avail_end", 0) or 0)
+            avail_limit     = int(request.form.get("avail_limit", 0) or 0)
             same_day_ng     = request.form.get("same_day_ng", "").strip()
             days_off_str    = request.form.get("days_off_str", "").strip()
             color           = request.form.get("color", "#c87941")
             execute(
                 "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, min_sun_days=?, wed_ok=?, sun_ok=?, "
-                "sun_only=?, sun_a_exclusive=?, wants_more=?, sun_undecided=?, same_day_ng=?, days_off_str=? WHERE id=?",
+                "sun_only=?, sun_a_exclusive=?, wants_more=?, sun_undecided=?, avail_start=?, avail_end=?, avail_limit=?, "
+                "same_day_ng=?, days_off_str=? WHERE id=?",
                 (color, allowed_slots, max_days, min_sun_days, wed_ok, sun_ok,
-                 sun_only, sun_a_exclusive, wants_more, sun_undecided, same_day_ng, days_off_str, sid)
+                 sun_only, sun_a_exclusive, wants_more, sun_undecided, avail_start, avail_end, avail_limit,
+                 same_day_ng, days_off_str, sid)
             )
             msg = "スタッフ情報を更新しました"
 
@@ -755,14 +763,18 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
             "sun_only":        bool(s.get("sun_only")),
             "wants_more":      bool(s.get("wants_more")),
             "sun_undecided":   bool(s.get("sun_undecided")),
+            "avail_start":     int(s.get("avail_start") or 0),
+            "avail_end":       int(s.get("avail_end") or 0),
+            "avail_limit":     int(s.get("avail_limit") or 0),
             "same_day_ng":     same_day_ng,
             "days_off":        days_off,
         })
 
     days_in_month = calendar.monthrange(year, month)[1]
-    work_count     = {s["name"]: 0 for s in staff_info}
-    sun_work_count = {s["name"]: 0 for s in staff_info}
-    assignments    = []
+    work_count       = {s["name"]: 0 for s in staff_info}
+    sun_work_count   = {s["name"]: 0 for s in staff_info}
+    avail_work_count = {s["name"]: 0 for s in staff_info}  # 出勤可能期間内の割当数
+    assignments      = []
 
     for day in range(1, days_in_month + 1):
         d   = date(year, month, day)
@@ -810,6 +822,15 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
                 # 日曜のみ出勤スタッフは日曜以外スキップ
                 if s["sun_only"] and dow != 6:
                     continue
+                # 出勤可能期間の制限（avail_start〜avail_end の間で avail_limit 日まで）
+                if s["avail_start"] > 0 and s["avail_end"] > 0:
+                    if s["avail_start"] <= day <= s["avail_end"]:
+                        # 期間内：上限日数に達していたらスキップ
+                        if s["avail_limit"] > 0 and avail_work_count[name] >= s["avail_limit"]:
+                            continue
+                    else:
+                        # 期間外：出勤不可
+                        continue
 
                 # 枠適格チェック
                 ok = False
@@ -862,6 +883,9 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
             work_count[chosen] += 1
             if dow == 6:
                 sun_work_count[chosen] += 1
+            chosen_s = next((x for x in staff_info if x["name"] == chosen), None)
+            if chosen_s and chosen_s["avail_start"] <= day <= chosen_s["avail_end"]:
+                avail_work_count[chosen] += 1
 
             start_t, end_t = SLOT_TIMES.get(slot, ("09:00", "17:00"))
             memo = f"{slot}枠" if slot != "仕込み" else "仕込み"

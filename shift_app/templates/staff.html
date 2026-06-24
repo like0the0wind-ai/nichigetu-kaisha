@@ -121,6 +121,18 @@
             <input type="text" name="days_off_str" value="{{ s.days_off_str or '' }}" placeholder="例: 3,12,25">
             <p class="hint">日付の数字のみ（毎月更新）</p>
           </div>
+          <div class="field" style="min-width:240px">
+            <label>出勤可能期間（日程調整）</label>
+            <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
+              <input type="number" name="avail_start" value="{{ s.avail_start or 0 }}" min="0" max="31" style="width:60px" placeholder="開始">
+              <span>日 〜</span>
+              <input type="number" name="avail_end" value="{{ s.avail_end or 0 }}" min="0" max="31" style="width:60px" placeholder="終了">
+              <span>日 の間で</span>
+              <input type="number" name="avail_limit" value="{{ s.avail_limit or 0 }}" min="0" max="31" style="width:60px" placeholder="日数">
+              <span>日まで</span>
+            </div>
+            <p class="hint">例: 10〜20日の間で2日まで。0なら制限なし</p>
+          </div>
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-top:.5rem">
