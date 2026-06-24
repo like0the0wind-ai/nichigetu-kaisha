@@ -459,6 +459,24 @@ def shift_add():
     return redirect(url_for("admin", year=d.year, month=d.month))
 
 
+# ── 月のシフト全削除 ──────────────────────────────────────────────────
+
+@app.route("/shift/clear-month", methods=["POST"])
+def shift_clear_month():
+    r = require_login()
+    if r:
+        return r
+    year  = int(request.form.get("year"))
+    month = int(request.form.get("month"))
+    first_day = date(year, month, 1)
+    last_day  = date(year, month, calendar.monthrange(year, month)[1])
+    execute(
+        "DELETE FROM shift_records WHERE shift_date BETWEEN ? AND ?",
+        (first_day.isoformat(), last_day.isoformat())
+    )
+    return redirect(url_for("admin", year=year, month=month))
+
+
 # ── シフト削除 ────────────────────────────────────────────────────────
 
 @app.route("/shift/delete/<int:shift_id>", methods=["POST"])
