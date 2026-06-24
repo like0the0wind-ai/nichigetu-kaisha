@@ -228,12 +228,6 @@
           <span class="amount">¥{{ "{:,}".format(slip.pension) }}</span>
         </div>
         {% endif %}
-        {% if slip.employment_insurance > 0 %}
-        <div class="slip-row">
-          <span class="label">雇用保険</span>
-          <span class="amount">¥{{ "{:,}".format(slip.employment_insurance) }}</span>
-        </div>
-        {% endif %}
         {% if slip.income_tax > 0 %}
         <div class="slip-row">
           <span class="label">所得税</span>
