@@ -436,7 +436,7 @@ def admin():
             hourly_at    = int(emp_at["hourly_rate"] or 0) if emp_at else 0
             transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
 
-            pay = int(hourly_at * reg / 60) + int(hourly_at * 1.25 * ov / 60) + transport_at
+            pay = int(hourly_at * reg / 60) + int(hourly_at * ov / 60) + transport_at
             year_total += pay
 
         other_income = int(emp["other_income"] or 0) if emp else 0
@@ -765,7 +765,7 @@ def _calc_year_end(name, year, adj):
         transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
         other_at     = int(emp_at["other_allowance"] or 0) if emp_at else 0
 
-        gross += int(hourly_at * std / 60) + int(hourly_at * 1.25 * over / 60) + other_at
+        gross += int(hourly_at * std / 60) + int(hourly_at * over / 60) + other_at
         total_transport += transport_at
         work_days += 1
 
@@ -1289,7 +1289,7 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
         total_h, total_m = divmod(total_min, 60)
         over_h,  over_m  = divmod(over_min,  60)
         base_pay     = int(hourly * reg_min / 60)
-        overtime_pay = int(hourly * 1.25 * over_min / 60)
+        overtime_pay = int(hourly * over_min / 60)
         gross_pay    = base_pay + overtime_pay + transport + other_all
 
         _write_one_slip_row(ws, row_off, name, days,
@@ -1327,7 +1327,7 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     days       = len(results)
 
     base_pay     = int(hourly * reg_min / 60)
-    overtime_pay = int(hourly * 1.25 * over_min / 60)
+    overtime_pay = int(hourly * over_min / 60)
     gross_pay    = base_pay + overtime_pay + transport + other_all
 
     # 令和年計算
@@ -1745,7 +1745,7 @@ def calc_payslip_data(emp, records_for_period):
         overtime_min += max(0, work_min - daily_regular_min)
 
     base_pay     = int(hourly * regular_min / 60)
-    overtime_pay = int(hourly * 1.25 * overtime_min / 60)
+    overtime_pay = int(hourly * overtime_min / 60)
     gross_pay    = base_pay + overtime_pay + emp["transport_allowance"] + emp["other_allowance"]
 
     return {
