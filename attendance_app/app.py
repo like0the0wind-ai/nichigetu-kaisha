@@ -107,10 +107,10 @@ def init_db():
                 fuyou_target        INTEGER NOT NULL DEFAULT 0
             )
         """)
-        cur.execute("ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0") if False else None
         for col_sql in [
             "ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE employees ADD COLUMN other_income INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE employees ADD COLUMN fuyou_category TEXT NOT NULL DEFAULT '103'",
         ]:
             try:
                 cur.execute(col_sql)
@@ -120,6 +120,19 @@ def init_db():
                     conn.rollback()
                 except Exception:
                     pass
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS employee_history (
+                id                  {serial} PRIMARY KEY {ai},
+                name                TEXT NOT NULL,
+                hourly_rate         INTEGER NOT NULL DEFAULT 0,
+                transport_allowance INTEGER NOT NULL DEFAULT 0,
+                other_allowance     INTEGER NOT NULL DEFAULT 0,
+                other_income        INTEGER NOT NULL DEFAULT 0,
+                fuyou_category      TEXT NOT NULL DEFAULT '103',
+                effective_from      TEXT NOT NULL
+            )
+        """)
+        conn.commit()
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS payslips (
                 id                   {serial} PRIMARY KEY {ai},
@@ -191,6 +204,42 @@ def execute(sql, params=()):
         conn.commit()
     finally:
         conn.close()
+
+FUYOU_LIMITS = {"103": 1_030_000, "123": 1_230_000}
+
+def get_emp_at(name, on_date):
+    """指定日に有効だった従業員の時給・扶養区分などを返す（履歴優先、なければ現在の設定）"""
+    rows = query(
+        "SELECT * FROM employee_history WHERE name=? AND effective_from<=? ORDER BY effective_from DESC, id DESC LIMIT 1",
+        (name, on_date)
+    )
+    if rows:
+        return dict(rows[0])
+    cur = query("SELECT * FROM employees WHERE name=?", (name,))
+    if cur:
+        e = dict(cur[0])
+        e.setdefault("fuyou_category", "103")
+        e.setdefault("other_income", 0)
+        return e
+    return None
+
+def record_employee_history(name, hourly, transport, other, other_income, fuyou_category):
+    """設定が変わった場合のみ履歴に新しいスナップショットを追加する"""
+    today = today_jst()
+    existing = query(
+        "SELECT * FROM employee_history WHERE name=? ORDER BY effective_from DESC, id DESC LIMIT 1",
+        (name,)
+    )
+    if existing:
+        e = existing[0]
+        if (int(e["hourly_rate"]) == hourly and int(e["transport_allowance"]) == transport and
+            int(e["other_allowance"]) == other and int(e["other_income"] or 0) == other_income and
+            (e["fuyou_category"] or "103") == fuyou_category):
+            return
+    execute(
+        "INSERT INTO employee_history (name, hourly_rate, transport_allowance, other_allowance, other_income, fuyou_category, effective_from) VALUES (?,?,?,?,?,?,?)",
+        (name, hourly, transport, other, other_income, fuyou_category, today)
+    )
 
 STANDARD_HOURS = 6
 
@@ -354,7 +403,6 @@ def admin():
     # 年間収入計算（扶養チェック用）
     year_start = date.fromisoformat(date_from).replace(month=1, day=1).isoformat()
     year_end   = date.fromisoformat(date_to).replace(month=12, day=31).isoformat()
-    FUYOU_LIMIT = 1_300_000  # 130万円（社会保険の扶養上限）
 
     staff_summary = []
     for n, s in sorted(staff.items()):
@@ -363,11 +411,11 @@ def admin():
         if emp:
             emp.setdefault("fuyou_target", 0)
             emp.setdefault("other_income", 0)
-        hourly = int(emp["hourly_rate"] or 0) if emp else 0
-        transport = int(emp["transport_allowance"] or 0) if emp else 0
-        other_income = int(emp["other_income"] or 0) if emp else 0
+            emp.setdefault("fuyou_category", "103")
+        category = (emp["fuyou_category"] if emp and emp.get("fuyou_category") else "103")
+        fuyou_limit = FUYOU_LIMITS.get(category, FUYOU_LIMITS["103"])
 
-        # 年間レコード取得
+        # 年間レコード取得（記録ごとに当時の時給・設定を使って計算）
         yr_rows = query(
             "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL",
             (n, year_start, year_end)
@@ -382,12 +430,19 @@ def admin():
             tot  = max(0, co_m - ci_m - bm)
             ov   = max(0, tot - STANDARD_HOURS * 60)
             reg  = tot - ov
-            pay  = int(hourly * reg / 60) + int(hourly * 1.25 * ov / 60) + transport
+
+            rec_date = ci.strftime("%Y-%m-%d")
+            emp_at = get_emp_at(n, rec_date)
+            hourly_at    = int(emp_at["hourly_rate"] or 0) if emp_at else 0
+            transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
+
+            pay = int(hourly_at * reg / 60) + int(hourly_at * 1.25 * ov / 60) + transport_at
             year_total += pay
 
+        other_income = int(emp["other_income"] or 0) if emp else 0
         year_total += other_income
-        remaining = FUYOU_LIMIT - year_total
-        pct = min(100, int(year_total / FUYOU_LIMIT * 100))
+        remaining = fuyou_limit - year_total
+        pct = min(100, int(year_total / fuyou_limit * 100))
 
         staff_summary.append({
             "name": n, "days": s["days"],
@@ -397,7 +452,8 @@ def admin():
             "year_total": year_total,
             "remaining": remaining,
             "pct": pct,
-            "fuyou_target": int(emp["fuyou_target"]) if emp and emp["fuyou_target"] else 0,
+            "fuyou_category": category,
+            "fuyou_limit": fuyou_limit,
             "other_income": other_income,
         })
 
@@ -678,9 +734,6 @@ def _calc_year_end(name, year, adj):
     if not emp:
         return None
     emp = dict(emp[0])
-    hourly    = int(emp.get("hourly_rate") or 0)
-    transport = int(emp.get("transport_allowance") or 0)
-    other_all = int(emp.get("other_allowance") or 0)
 
     rows = query(
         "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? ORDER BY clock_in",
@@ -702,8 +755,14 @@ def _calc_year_end(name, year, adj):
         total = max(0, co_m - ci_m - bm)
         std  = min(total, STANDARD_HOURS * 60)
         over = floor15(max(0, total - STANDARD_HOURS * 60))
-        gross += int(hourly * std / 60) + int(hourly * 1.25 * over / 60) + other_all
-        total_transport += transport
+
+        emp_at = get_emp_at(name, ci.strftime("%Y-%m-%d"))
+        hourly_at    = int(emp_at["hourly_rate"] or 0) if emp_at else 0
+        transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
+        other_at     = int(emp_at["other_allowance"] or 0) if emp_at else 0
+
+        gross += int(hourly_at * std / 60) + int(hourly_at * 1.25 * over / 60) + other_at
+        total_transport += transport_at
         work_days += 1
 
     # 交通費は月10万円まで非課税（全額非課税扱い）
@@ -1754,13 +1813,16 @@ def admin_employee_save():
     transport    = int(request.form.get("transport_allowance", 0) or 0)
     other        = int(request.form.get("other_allowance", 0) or 0)
     other_income = int(request.form.get("other_income", 0) or 0)
+    fuyou_category = request.form.get("fuyou_category", "103")
+    if fuyou_category not in ("103", "123"):
+        fuyou_category = "103"
     notes        = request.form.get("notes", "").strip()
 
     if emp_id:
         try:
             execute(
-                "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, other_income=?, notes=? WHERE id=?",
-                (name, hourly, transport, other, other_income, notes, emp_id)
+                "UPDATE employees SET name=?, hourly_rate=?, transport_allowance=?, other_allowance=?, other_income=?, fuyou_category=?, notes=? WHERE id=?",
+                (name, hourly, transport, other, other_income, fuyou_category, notes, emp_id)
             )
         except Exception:
             execute(
@@ -1770,23 +1832,31 @@ def admin_employee_save():
     else:
         try:
             execute(
-                "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, other_income, notes) VALUES (?,?,?,?,?,?)",
-                (name, hourly, transport, other, other_income, notes)
+                "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, other_income, fuyou_category, notes) VALUES (?,?,?,?,?,?,?)",
+                (name, hourly, transport, other, other_income, fuyou_category, notes)
             )
         except Exception:
             execute(
                 "INSERT INTO employees (name, hourly_rate, transport_allowance, other_allowance, notes) VALUES (?,?,?,?,?)",
                 (name, hourly, transport, other, notes)
             )
+    record_employee_history(name, hourly, transport, other, other_income, fuyou_category)
     return redirect(url_for("admin_payroll"))
 
 @app.route("/admin/payroll/employee/<int:emp_id>/fuyou", methods=["POST"])
 @admin_required
 def admin_employee_fuyou(emp_id):
-    emp = query("SELECT fuyou_target FROM employees WHERE id=?", (emp_id,))
+    category = request.form.get("fuyou_category", "103")
+    if category not in ("103", "123"):
+        category = "103"
+    emp = query("SELECT * FROM employees WHERE id=?", (emp_id,))
     if emp:
-        new_val = 0 if emp[0]["fuyou_target"] else 1
-        execute("UPDATE employees SET fuyou_target=? WHERE id=?", (new_val, emp_id))
+        e = dict(emp[0])
+        execute("UPDATE employees SET fuyou_category=? WHERE id=?", (category, emp_id))
+        record_employee_history(
+            e["name"], int(e["hourly_rate"]), int(e["transport_allowance"]),
+            int(e["other_allowance"]), int(e["other_income"] or 0), category
+        )
     return redirect(url_for("admin_payroll"))
 
 @app.route("/admin/payroll/employee/<int:emp_id>/delete", methods=["POST"])

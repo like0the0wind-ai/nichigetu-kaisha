@@ -287,14 +287,15 @@
           <td>¥{{ "{:,}".format(e.other_allowance) }}</td>
           <td style="color:#9a6a3a;font-size:.8rem">{{ e.notes or "—" }}</td>
           <td>
-            <form method="post" action="/admin/payroll/employee/{{ e.id }}/fuyou" style="display:inline">
-              <button type="submit" class="btn-sm" style="background:{% if e.fuyou_target %}#4a7a4a{% else %}#aaa{% endif %}">
-                {% if e.fuyou_target %}扶養内{% else %}扶養外{% endif %}
-              </button>
+            <form method="post" action="/admin/payroll/employee/{{ e.id }}/fuyou" style="display:inline" onchange="this.submit()">
+              <select name="fuyou_category" class="btn-sm">
+                <option value="103" {% if (e.fuyou_category or '103') == '103' %}selected{% endif %}>103万</option>
+                <option value="123" {% if e.fuyou_category == '123' %}selected{% endif %}>123万</option>
+              </select>
             </form>
           </td>
           <td>
-            <button class="btn-outline" onclick="editEmp({{ e.id }}, '{{ e.name }}', {{ e.hourly_rate }}, {{ e.transport_allowance }}, {{ e.other_allowance }}, '{{ e.notes or "" }}', {{ e.other_income or 0 }})">編集</button>
+            <button class="btn-outline" onclick="editEmp({{ e.id }}, '{{ e.name }}', {{ e.hourly_rate }}, {{ e.transport_allowance }}, {{ e.other_allowance }}, '{{ e.notes or "" }}', {{ e.other_income or 0 }}, '{{ e.fuyou_category or "103" }}')">編集</button>
             <form method="post" action="/admin/payroll/employee/{{ e.id }}/delete" style="display:inline"
                   onsubmit="return confirm('{{ e.name }} を削除しますか？')">
               <button class="btn-del" type="submit">削除</button>
@@ -336,6 +337,13 @@
           <input type="number" name="other_income" id="m-other-income" min="0" value="0">
         </div>
         <div class="form-row">
+          <label>扶養区分</label>
+          <select name="fuyou_category" id="m-fuyou-category">
+            <option value="103">103万</option>
+            <option value="123">123万</option>
+          </select>
+        </div>
+        <div class="form-row">
           <label>備考</label>
           <input type="text" name="notes" id="m-notes" placeholder="任意">
         </div>
@@ -356,10 +364,11 @@
       document.getElementById("m-transport").value = 0;
       document.getElementById("m-other").value = 0;
       document.getElementById("m-other-income").value = 0;
+      document.getElementById("m-fuyou-category").value = "103";
       document.getElementById("m-notes").value = "";
       document.getElementById("emp-modal").classList.add("open");
     }
-    function editEmp(id, name, hourly, transport, other, notes, otherIncome) {
+    function editEmp(id, name, hourly, transport, other, notes, otherIncome, fuyouCategory) {
       document.getElementById("modal-title").textContent = "スタッフを編集";
       document.getElementById("m-id").value = id;
       document.getElementById("m-name").value = name;
@@ -367,6 +376,7 @@
       document.getElementById("m-transport").value = transport;
       document.getElementById("m-other").value = other;
       document.getElementById("m-other-income").value = otherIncome || 0;
+      document.getElementById("m-fuyou-category").value = fuyouCategory || "103";
       document.getElementById("m-notes").value = notes;
       document.getElementById("emp-modal").classList.add("open");
     }
