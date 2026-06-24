@@ -122,7 +122,7 @@
             <p class="hint">日付の数字のみ（毎月更新）</p>
           </div>
           <div class="field" style="min-width:240px">
-            <label>出勤可能期間（日程調整）</label>
+            <label>期間内の出勤制限（日程調整）</label>
             <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
               <input type="number" name="avail_start" value="{{ s.avail_start or 0 }}" min="0" max="31" style="width:60px" placeholder="開始">
               <span>日 〜</span>
@@ -131,7 +131,7 @@
               <input type="number" name="avail_limit" value="{{ s.avail_limit or 0 }}" min="0" max="31" style="width:60px" placeholder="日数">
               <span>日まで</span>
             </div>
-            <p class="hint">例: 10〜20日の間で2日まで。0なら制限なし</p>
+            <p class="hint">例: 27〜30日の間は1日まで。期間外は通常通り出勤。0なら制限なし</p>
           </div>
         </div>
 

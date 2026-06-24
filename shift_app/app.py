@@ -822,15 +822,12 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
                 # 日曜のみ出勤スタッフは日曜以外スキップ
                 if s["sun_only"] and dow != 6:
                     continue
-                # 出勤可能期間の制限（avail_start〜avail_end の間で avail_limit 日まで）
-                if s["avail_start"] > 0 and s["avail_end"] > 0:
+                # 出勤可能期間の制限（avail_start〜avail_end の間は avail_limit 日まで）
+                # 期間外は通常通り出勤可能
+                if s["avail_start"] > 0 and s["avail_end"] > 0 and s["avail_limit"] > 0:
                     if s["avail_start"] <= day <= s["avail_end"]:
-                        # 期間内：上限日数に達していたらスキップ
-                        if s["avail_limit"] > 0 and avail_work_count[name] >= s["avail_limit"]:
+                        if avail_work_count[name] >= s["avail_limit"]:
                             continue
-                    else:
-                        # 期間外：出勤不可
-                        continue
 
                 # 枠適格チェック
                 ok = False
