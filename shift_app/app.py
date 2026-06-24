@@ -637,6 +637,12 @@ def generate():
             year  = int(request.form.get("year",  today.year))
             month = int(request.form.get("month", today.month))
             marche_dates_str = request.form.get("marche_dates", "").strip()
+            holiday_dates_str = request.form.get("holiday_dates", "").strip()
+            holiday_dates = set()
+            for x in holiday_dates_str.split(","):
+                x = x.strip()
+                if x.isdigit():
+                    holiday_dates.add(int(x))
 
             # 設定保存
             month_key = f"{year}-{month:02d}"
@@ -679,7 +685,7 @@ def generate():
                     (first_day.isoformat(), last_day.isoformat())
                 )
 
-                assignments = _generate_shifts(year, month, staff_rows, marche_dates)
+                assignments = _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates)
 
                 # staff名→IDマップ
                 sid_map = {s["name"]: s["id"] for s in staff_rows}
@@ -707,7 +713,7 @@ def generate():
     )
 
 
-def _generate_shifts(year, month, staff_rows, marche_dates):
+def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
     """
     シフト自動生成アルゴリズム
     Returns: list of (date_str, slot, name, start_time, end_time, memo)
@@ -758,6 +764,10 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
     for day in range(1, days_in_month + 1):
         d   = date(year, month, day)
         dow = d.weekday()  # 0=月...6=日
+
+        # 休業日（管理者指定）はシフトを作らない
+        if holiday_dates and day in holiday_dates:
+            continue
 
         rule = day_rules.get(dow, {})
         if rule.get("is_closed", dow == 5):
@@ -815,11 +825,6 @@ def _generate_shifts(year, month, staff_rows, marche_dates):
                     ok = "D" in s["allowed_slots"]
 
                 if not ok:
-                    continue
-
-                # 同日NG チェック
-                ng = any(ng_name in assigned_names for ng_name in s["same_day_ng"])
-                if ng:
                     continue
 
                 eligible.append(s)

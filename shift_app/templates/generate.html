@@ -107,6 +107,11 @@
         <input type="text" name="marche_dates" placeholder="例: 7,14,21,28">
         <p class="hint">日曜日の日付を入力 → M枠（マルシェ）を追加</p>
       </div>
+      <div class="field" style="margin-bottom:1rem">
+        <label>休業日（日付をカンマ区切り）</label>
+        <input type="text" name="holiday_dates" placeholder="例: 5,15,25">
+        <p class="hint">その日はシフトに誰も入れません（店休日・臨時休業）</p>
+      </div>
       <button type="submit" class="btn-generate">🗓 シフトを自動生成する</button>
     </form>
   </div>
@@ -155,7 +160,6 @@
           <th>火・水可</th>
           <th>日曜のみ</th>
           <th>日曜A専任</th>
-          <th>同日NG</th>
           <th>休み希望日</th>
         </tr>
       </thead>
@@ -170,7 +174,6 @@
           <td class="{% if s.wed_ok %}ok{% else %}ng{% endif %}">{% if s.wed_ok %}✓{% else %}—{% endif %}</td>
           <td class="{% if s.sun_only %}ok{% else %}ng{% endif %}">{% if s.sun_only %}✓{% else %}—{% endif %}</td>
           <td class="{% if s.sun_a_exclusive %}ok{% else %}ng{% endif %}">{% if s.sun_a_exclusive %}✓{% else %}—{% endif %}</td>
-          <td>{{ s.same_day_ng or '—' }}</td>
           <td style="font-size:.78rem">{{ s.days_off_str or '—' }}</td>
         </tr>
         {% endfor %}
