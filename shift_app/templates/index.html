@@ -90,6 +90,14 @@
     .filter-btn.all-btn.active { border-color: #7a4010; }
     .filter-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
+    /* ── 休業日 ── */
+    .holiday-cell { background: #f3e3e0 !important; }
+    .holiday-badge {
+      display: inline-block; background: #b0382a; color: #fff;
+      font-size: .62rem; padding: .15rem .4rem; border-radius: 4px; font-weight: bold;
+    }
+    .cal-list-shifts .holiday-badge { font-size: .82rem; padding: .35rem .7rem; border-radius: 7px; }
+
     /* ── スマホ用 縦リスト（PCでは非表示） ── */
     .cal-list { display: none; }
     .cal-list-row { display: flex; gap: .6rem; padding: .5rem .3rem; border-bottom: 1px solid #e0cdb0; align-items: flex-start; }
@@ -223,13 +231,17 @@
             {% set d = "%04d-%02d-%02d"|format(year, month, day) %}
             {% set col = loop.index0 %}
             {% set is_today = (year == today.year and month == today.month and day == today.day) %}
-            <td class="{% if is_today %}today-cell{% endif %}">
+            <td class="{% if is_today %}today-cell{% endif %} {% if day in holiday_days %}holiday-cell{% endif %}">
               <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">{{ day }}</div>
+              {% if day in holiday_days %}
+              <span class="holiday-badge">{{ holiday_label }}</span>
+              {% else %}
               {% for sh in shift_map.get(d, []) %}
               <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
                 {{ sh.staff_name }} {{ sh.start_time }}〜{{ sh.end_time }}
               </span>
               {% endfor %}
+              {% endif %}
             </td>
           {% endif %}
           {% endfor %}
@@ -254,7 +266,9 @@
                 <span class="cal-list-dow">{{ ['月','火','水','木','金','土','日'][col] }}</span>
               </div>
               <div class="cal-list-shifts">
-                {% if shifts %}
+                {% if day in holiday_days %}
+                  <span class="holiday-badge">{{ holiday_label }}</span>
+                {% elif shifts %}
                   {% for sh in shifts %}
                   <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
                     {{ sh.staff_name }} {{ sh.start_time }}〜{{ sh.end_time }}

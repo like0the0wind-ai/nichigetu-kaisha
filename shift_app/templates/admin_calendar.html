@@ -40,6 +40,8 @@
     .cal-table th.sun { color: #9a1a1a; }
     .cal-table td { border: 1px solid #e0cdb0; vertical-align: top; height: 80px; padding: .25rem; width: calc(100%/7); }
     .cal-table td.today-cell { background: #fff5e0; }
+    .cal-table td.holiday-cell { background: #f3e3e0; }
+    .holiday-badge { display: inline-block; background: #b0382a; color: #fff; font-size: .65rem; padding: .15rem .4rem; border-radius: 4px; font-weight: bold; margin-bottom: .1rem; }
     .day-num { font-size: .75rem; font-weight: bold; margin-bottom: .2rem; display: flex; align-items: center; justify-content: space-between; }
     .day-num.sat { color: #1a5a9a; } .day-num.sun { color: #9a1a1a; } .day-num.today-num { color: #c87941; }
     .add-btn { font-size: .6rem; background: #e8d5b5; border: none; border-radius: 4px; padding: .1rem .3rem; cursor: pointer; color: #7a5030; }
@@ -124,11 +126,12 @@
             {% set d = "%04d-%02d-%02d"|format(year, month, day) %}
             {% set col = loop.index0 %}
             {% set is_today = (year == today.year and month == today.month and day == today.day) %}
-            <td class="{% if is_today %}today-cell{% endif %}">
+            <td class="{% if is_today %}today-cell{% endif %} {% if day in holiday_days %}holiday-cell{% endif %}">
               <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">
                 <span>{{ day }}</span>
                 {% if staff_rows %}<button class="add-btn" onclick="openAdd('{{ d }}', {{ day }})">＋</button>{% endif %}
               </div>
+              {% if day in holiday_days %}<span class="holiday-badge">{{ holiday_label }}</span>{% endif %}
               {% for sh in shift_map.get(d, []) %}
               <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}')">
                 <span class="chip-info">{{ sh.staff_name }} {{ sh.slot_label }}</span>
@@ -144,6 +147,29 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <!-- 休業日設定 -->
+  <div class="card">
+    <h2 style="font-size:.95rem;color:#7a4010;margin-bottom:.75rem;font-weight:normal">🏖 {{ month_name }} の休業日設定</h2>
+    <form method="post" action="/holidays/save">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:160px">
+          <label style="font-size:.8rem;color:#7a4010;display:block;margin-bottom:.3rem">休業日（カンマ区切り）</label>
+          <input type="text" name="holiday_dates" value="{{ holiday_dates_str }}" placeholder="例: 5,15,25"
+                 style="width:100%;padding:.6rem .8rem;background:#fff;border:1px solid #c8a878;border-radius:8px;font-family:inherit;font-size:.95rem;color:#3a2010">
+        </div>
+        <div style="flex:1;min-width:140px">
+          <label style="font-size:.8rem;color:#7a4010;display:block;margin-bottom:.3rem">表示ラベル</label>
+          <input type="text" name="holiday_label" value="{{ holiday_label }}" placeholder="臨時休業 / 休み など"
+                 style="width:100%;padding:.6rem .8rem;background:#fff;border:1px solid #c8a878;border-radius:8px;font-family:inherit;font-size:.95rem;color:#3a2010">
+        </div>
+        <button type="submit" style="background:#c87941;color:#fff;border:none;border-radius:8px;padding:.65rem 1.4rem;font-family:inherit;font-size:.95rem;cursor:pointer">保存</button>
+      </div>
+      <p style="font-size:.75rem;color:#9a7a5a;margin-top:.5rem">入力した日にカレンダーへ赤い「{{ holiday_label }}」が表示されます。空欄で保存すると解除されます。</p>
+    </form>
   </div>
 
   {% if not staff_rows %}
