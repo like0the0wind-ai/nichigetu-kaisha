@@ -152,30 +152,85 @@
   <!-- 休業日設定 -->
   <div class="card">
     <h2 style="font-size:.95rem;color:#7a4010;margin-bottom:.75rem;font-weight:normal">🏖 {{ month_name }} の休業日・特記事項</h2>
-    <form method="post" action="/holidays/save">
+    <form method="post" action="/holidays/save" id="holidayForm">
       <input type="hidden" name="year" value="{{ year }}">
       <input type="hidden" name="month" value="{{ month }}">
-      <label style="font-size:.8rem;color:#7a4010;display:block;margin-bottom:.3rem">「日付:内容:色」を1行ずつ入力（色は省略可）</label>
-      <textarea name="holiday_dates" rows="4" placeholder="16:臨時休業:赤&#10;18:人数少ないため:青&#10;23:夏季休業:橙"
-        style="width:100%;padding:.6rem .8rem;background:#fff;border:1px solid #c8a878;border-radius:8px;font-family:inherit;font-size:.95rem;color:#3a2010;resize:vertical">{{ holiday_lines }}</textarea>
-      <div style="margin-top:.6rem">
-        <button type="submit" style="background:#c87941;color:#fff;border:none;border-radius:8px;padding:.65rem 1.6rem;font-family:inherit;font-size:.95rem;cursor:pointer">保存</button>
-      </div>
-      <div style="font-size:.75rem;color:#9a7a5a;margin-top:.5rem">
-        例：<code>16:臨時休業:赤</code> / <code>18:人数少ないため:青</code> / <code>23:夏季休業:橙</code><br>
-        使える色：
-        <span style="color:#b0382a">赤</span>・
-        <span style="color:#2a6aaa">青</span>・
-        <span style="color:#2a8a4a">緑</span>・
-        <span style="color:#d4731a">橙</span>・
-        <span style="color:#7a3a9a">紫</span>・
-        <span style="color:#d05080">桃</span>・
-        <span style="color:#8a5a30">茶</span>・
-        <span style="color:#7a7a7a">灰</span>
-        （省略すると赤）。空欄で保存すると全て解除されます。
+      <input type="hidden" name="holiday_dates" id="holidayData">
+
+      <div id="holidayRows"></div>
+
+      <button type="button" onclick="addHolidayRow()" style="background:#e8d5b5;color:#7a4010;border:none;border-radius:8px;padding:.55rem 1.1rem;font-family:inherit;font-size:.9rem;cursor:pointer;margin-top:.3rem">＋ 休業日を追加</button>
+      <div style="margin-top:.8rem">
+        <button type="submit" style="background:#c87941;color:#fff;border:none;border-radius:8px;padding:.65rem 1.8rem;font-family:inherit;font-size:.95rem;cursor:pointer">💾 保存</button>
       </div>
     </form>
   </div>
+
+  <style>
+    .hrow { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; background:#faf5ee; border:1px solid #e0cdb0; border-radius:10px; padding:.6rem; margin-bottom:.5rem; }
+    .hrow select, .hrow input[type=text] { padding:.5rem .6rem; background:#fff; border:1px solid #c8a878; border-radius:7px; font-family:inherit; font-size:.95rem; color:#3a2010; }
+    .hrow .h-date { width:70px; }
+    .hrow .h-label { flex:1; min-width:120px; }
+    .h-colors { display:flex; gap:.3rem; }
+    .h-color { width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer; }
+    .h-color.sel { border-color:#3a2010; }
+    .h-del { background:#e05050; color:#fff; border:none; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:1rem; }
+  </style>
+
+  <script>
+    const HCOLORS = {{ holiday_color_map | tojson }};
+    const HDAYS = {{ days_in_month }};
+    const HEXISTING = {{ holidays_list | tojson }};
+
+    function addHolidayRow(day, label, colorName) {
+      const wrap = document.getElementById('holidayRows');
+      const row = document.createElement('div');
+      row.className = 'hrow';
+
+      // 日付select
+      let opts = '<option value="">日</option>';
+      for (let i=1; i<=HDAYS; i++) opts += `<option value="${i}" ${i==day?'selected':''}>${i}日</option>`;
+      const colorKeys = Object.keys(HCOLORS);
+      const selColor = colorName && HCOLORS[colorName] ? colorName : '赤';
+
+      let swatches = '';
+      colorKeys.forEach(k => {
+        swatches += `<span class="h-color ${k==selColor?'sel':''}" style="background:${HCOLORS[k]}" data-color="${k}" title="${k}" onclick="pickColor(this)"></span>`;
+      });
+
+      row.innerHTML = `
+        <select class="h-date">${opts}</select>
+        <input type="text" class="h-label" placeholder="内容（例：臨時休業）" value="${label||''}">
+        <div class="h-colors">${swatches}</div>
+        <button type="button" class="h-del" onclick="this.closest('.hrow').remove()">✕</button>`;
+      wrap.appendChild(row);
+    }
+
+    function pickColor(el) {
+      el.parentElement.querySelectorAll('.h-color').forEach(c=>c.classList.remove('sel'));
+      el.classList.add('sel');
+    }
+
+    // 既存データを表示
+    if (HEXISTING.length) {
+      HEXISTING.forEach(h => addHolidayRow(h.day, h.label, h.color));
+    } else {
+      addHolidayRow();
+    }
+
+    // 送信時にまとめる
+    document.getElementById('holidayForm').addEventListener('submit', function() {
+      const lines = [];
+      document.querySelectorAll('#holidayRows .hrow').forEach(row => {
+        const day = row.querySelector('.h-date').value;
+        const label = row.querySelector('.h-label').value.trim();
+        const colorEl = row.querySelector('.h-color.sel');
+        const color = colorEl ? colorEl.dataset.color : '赤';
+        if (day) lines.push(`${day}:${label||'臨時休業'}:${color}`);
+      });
+      document.getElementById('holidayData').value = lines.join(',');
+    });
+  </script>
 
   {% if not staff_rows %}
   <p style="text-align:center;color:#9a7a5a;font-size:.88rem"><a href="/staff" style="color:#c87941">スタッフを先に登録してください →</a></p>

@@ -468,12 +468,16 @@ def admin():
         next_year, next_month = year, month + 1
     holidays = get_holidays(year, month)
     color2name = {v: k for k, v in HOLIDAY_COLORS.items()}
-    holiday_lines = "\n".join(
-        f"{d}:{h['label']}:{color2name.get(h['color'], h['color'])}"
+    holidays_list = [
+        {"day": d, "label": h["label"], "color": color2name.get(h["color"], h["color"])}
         for d, h in sorted(holidays.items())
-    )
+    ]
+    days_in_month = calendar.monthrange(year, month)[1]
     return render_template(
         "admin_calendar.html",
+        holidays_list=holidays_list,
+        holiday_color_map=HOLIDAY_COLORS,
+        days_in_month=days_in_month,
         year=year, month=month, cal=cal,
         shift_map=shift_map, staff_rows=staff_rows,
         today=today,
