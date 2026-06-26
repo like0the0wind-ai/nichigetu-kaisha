@@ -234,7 +234,7 @@
             <td class="{% if is_today %}today-cell{% endif %} {% if day in holidays %}holiday-cell{% endif %}">
               <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">{{ day }}</div>
               {% if day in holidays %}
-              <span class="holiday-badge">{{ holidays[day] }}</span>
+              <span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>
               {% else %}
               {% for sh in shift_map.get(d, []) %}
               <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
@@ -267,7 +267,7 @@
               </div>
               <div class="cal-list-shifts">
                 {% if day in holidays %}
-                  <span class="holiday-badge">{{ holidays[day] }}</span>
+                  <span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>
                 {% elif shifts %}
                   {% for sh in shifts %}
                   <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
