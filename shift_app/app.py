@@ -194,19 +194,29 @@ def init_db():
 
 
 def get_holidays(year, month):
-    """指定月の休業日set と ラベル を返す"""
+    """指定月の {日付: ラベル} 辞書を返す
+    保存形式: "16:臨時休業,18:人数少ないため,23:夏季休業"
+    （旧形式 "5,15" も許容し、その場合は holiday_label を使う）
+    """
     month_key = f"{year}-{month:02d}"
     row = query("SELECT holiday_dates, holiday_label FROM shift_config WHERE month=?", (month_key,))
-    days = set()
-    label = "臨時休業"
+    holidays = {}
     if row:
-        for x in (row[0].get("holiday_dates") or "").split(","):
-            x = x.strip()
-            if x.isdigit():
-                days.add(int(x))
-        if row[0].get("holiday_label"):
-            label = row[0]["holiday_label"]
-    return days, label
+        default_label = row[0].get("holiday_label") or "臨時休業"
+        for token in (row[0].get("holiday_dates") or "").split(","):
+            token = token.strip()
+            if not token:
+                continue
+            if ":" in token or "：" in token:
+                token = token.replace("：", ":")
+                d, _, lbl = token.partition(":")
+                d = d.strip()
+                lbl = lbl.strip() or default_label
+                if d.isdigit():
+                    holidays[int(d)] = lbl
+            elif token.isdigit():
+                holidays[int(token)] = default_label
+    return holidays
 
 
 # ── Auth ──────────────────────────────────────────────────────────────
@@ -326,14 +336,14 @@ def index():
             else:
                 login_error = "パスワードが違います"
 
-    holiday_days, holiday_label = get_holidays(year, month)
+    holidays = get_holidays(year, month)
     return render_template(
         "index.html",
         # カレンダー
         year=year, month=month, cal=cal,
         shift_map=shift_map, staff_rows=staff_rows,
         today=today,
-        holiday_days=holiday_days, holiday_label=holiday_label,
+        holidays=holidays,
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
         month_name=f"{year}年{month}月",
@@ -450,14 +460,15 @@ def admin():
         next_year, next_month = year + 1, 1
     else:
         next_year, next_month = year, month + 1
-    holiday_days, holiday_label = get_holidays(year, month)
+    holidays = get_holidays(year, month)
+    holiday_lines = "\n".join(f"{d}:{lbl}" for d, lbl in sorted(holidays.items()))
     return render_template(
         "admin_calendar.html",
         year=year, month=month, cal=cal,
         shift_map=shift_map, staff_rows=staff_rows,
         today=today,
-        holiday_days=holiday_days, holiday_label=holiday_label,
-        holiday_dates_str=",".join(str(d) for d in sorted(holiday_days)),
+        holidays=holidays,
+        holiday_lines=holiday_lines,
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
         month_name=f"{year}年{month}月",
@@ -473,16 +484,29 @@ def holidays_save():
         return r
     year  = int(request.form.get("year"))
     month = int(request.form.get("month"))
-    holiday_dates = request.form.get("holiday_dates", "").strip()
-    holiday_label = request.form.get("holiday_label", "臨時休業").strip() or "臨時休業"
+    raw = request.form.get("holiday_dates", "")
+    # 改行・カンマ区切りどちらも受け付け、"日:ラベル" 形式に正規化
+    tokens = []
+    for line in raw.replace(",", "\n").splitlines():
+        line = line.replace("：", ":").strip()
+        if not line:
+            continue
+        if ":" in line:
+            d, _, lbl = line.partition(":")
+            d = d.strip(); lbl = lbl.strip()
+            if d.isdigit():
+                tokens.append(f"{int(d)}:{lbl}" if lbl else f"{int(d)}:臨時休業")
+        elif line.isdigit():
+            tokens.append(f"{int(line)}:臨時休業")
+    holiday_dates = ",".join(tokens)
     month_key = f"{year}-{month:02d}"
     existing = query("SELECT id FROM shift_config WHERE month=?", (month_key,))
     if existing:
-        execute("UPDATE shift_config SET holiday_dates=?, holiday_label=? WHERE month=?",
-                (holiday_dates, holiday_label, month_key))
+        execute("UPDATE shift_config SET holiday_dates=? WHERE month=?",
+                (holiday_dates, month_key))
     else:
-        execute("INSERT INTO shift_config (month, holiday_dates, holiday_label) VALUES (?,?,?)",
-                (month_key, holiday_dates, holiday_label))
+        execute("INSERT INTO shift_config (month, holiday_dates) VALUES (?,?)",
+                (month_key, holiday_dates))
     return redirect(url_for("admin", year=year, month=month))
 
 
