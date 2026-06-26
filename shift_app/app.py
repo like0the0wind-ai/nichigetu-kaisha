@@ -482,7 +482,6 @@ def admin():
         shift_map=shift_map, staff_rows=staff_rows,
         today=today,
         holidays=holidays,
-        holiday_lines=holiday_lines,
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
         month_name=f"{year}年{month}月",
