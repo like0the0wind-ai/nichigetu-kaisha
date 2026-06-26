@@ -131,7 +131,7 @@
                 <span>{{ day }}</span>
                 {% if staff_rows %}<button class="add-btn" onclick="openAdd('{{ d }}', {{ day }})">＋</button>{% endif %}
               </div>
-              {% if day in holidays %}<span class="holiday-badge">{{ holidays[day] }}</span>{% endif %}
+              {% if day in holidays %}<span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>{% endif %}
               {% for sh in shift_map.get(d, []) %}
               <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}')">
                 <span class="chip-info">{{ sh.staff_name }} {{ sh.slot_label }}</span>
@@ -155,19 +155,25 @@
     <form method="post" action="/holidays/save">
       <input type="hidden" name="year" value="{{ year }}">
       <input type="hidden" name="month" value="{{ month }}">
-      <label style="font-size:.8rem;color:#7a4010;display:block;margin-bottom:.3rem">「日付:内容」を1行ずつ入力</label>
-      <textarea name="holiday_dates" rows="4" placeholder="16:臨時休業&#10;18:人数少ないため&#10;23:夏季休業"
+      <label style="font-size:.8rem;color:#7a4010;display:block;margin-bottom:.3rem">「日付:内容:色」を1行ずつ入力（色は省略可）</label>
+      <textarea name="holiday_dates" rows="4" placeholder="16:臨時休業:赤&#10;18:人数少ないため:青&#10;23:夏季休業:橙"
         style="width:100%;padding:.6rem .8rem;background:#fff;border:1px solid #c8a878;border-radius:8px;font-family:inherit;font-size:.95rem;color:#3a2010;resize:vertical">{{ holiday_lines }}</textarea>
       <div style="margin-top:.6rem">
         <button type="submit" style="background:#c87941;color:#fff;border:none;border-radius:8px;padding:.65rem 1.6rem;font-family:inherit;font-size:.95rem;cursor:pointer">保存</button>
       </div>
-      <p style="font-size:.75rem;color:#9a7a5a;margin-top:.5rem">
-        例：<br>
-        16:臨時休業<br>
-        18:人数少ないため<br>
-        23:夏季休業<br>
-        入力した日にカレンダーへ赤いラベルが表示されます。空欄で保存すると全て解除されます。
-      </p>
+      <div style="font-size:.75rem;color:#9a7a5a;margin-top:.5rem">
+        例：<code>16:臨時休業:赤</code> / <code>18:人数少ないため:青</code> / <code>23:夏季休業:橙</code><br>
+        使える色：
+        <span style="color:#b0382a">赤</span>・
+        <span style="color:#2a6aaa">青</span>・
+        <span style="color:#2a8a4a">緑</span>・
+        <span style="color:#d4731a">橙</span>・
+        <span style="color:#7a3a9a">紫</span>・
+        <span style="color:#d05080">桃</span>・
+        <span style="color:#8a5a30">茶</span>・
+        <span style="color:#7a7a7a">灰</span>
+        （省略すると赤）。空欄で保存すると全て解除されます。
+      </div>
     </form>
   </div>
 

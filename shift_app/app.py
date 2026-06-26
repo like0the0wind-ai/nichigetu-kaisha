@@ -193,10 +193,17 @@ def init_db():
         conn.close()
 
 
+# 色名 → カラーコード
+HOLIDAY_COLORS = {
+    "赤": "#b0382a", "青": "#2a6aaa", "緑": "#2a8a4a",
+    "灰": "#7a7a7a", "橙": "#d4731a", "紫": "#7a3a9a",
+    "桃": "#d05080", "茶": "#8a5a30",
+}
+
 def get_holidays(year, month):
-    """指定月の {日付: ラベル} 辞書を返す
-    保存形式: "16:臨時休業,18:人数少ないため,23:夏季休業"
-    （旧形式 "5,15" も許容し、その場合は holiday_label を使う）
+    """指定月の {日付: {"label":.., "color":..}} 辞書を返す
+    保存形式: "16:臨時休業:赤,18:人数少ないため:青"
+    （旧形式 "5,15" や "5:臨時休業" も許容）
     """
     month_key = f"{year}-{month:02d}"
     row = query("SELECT holiday_dates, holiday_label FROM shift_config WHERE month=?", (month_key,))
@@ -204,18 +211,17 @@ def get_holidays(year, month):
     if row:
         default_label = row[0].get("holiday_label") or "臨時休業"
         for token in (row[0].get("holiday_dates") or "").split(","):
-            token = token.strip()
+            token = token.replace("：", ":").strip()
             if not token:
                 continue
-            if ":" in token or "：" in token:
-                token = token.replace("：", ":")
-                d, _, lbl = token.partition(":")
-                d = d.strip()
-                lbl = lbl.strip() or default_label
-                if d.isdigit():
-                    holidays[int(d)] = lbl
-            elif token.isdigit():
-                holidays[int(token)] = default_label
+            parts = [p.strip() for p in token.split(":")]
+            d = parts[0]
+            if not d.isdigit():
+                continue
+            label = parts[1] if len(parts) > 1 and parts[1] else default_label
+            color_key = parts[2] if len(parts) > 2 else ""
+            color = HOLIDAY_COLORS.get(color_key, color_key if color_key.startswith("#") else "#b0382a")
+            holidays[int(d)] = {"label": label, "color": color}
     return holidays
 
 
@@ -461,7 +467,11 @@ def admin():
     else:
         next_year, next_month = year, month + 1
     holidays = get_holidays(year, month)
-    holiday_lines = "\n".join(f"{d}:{lbl}" for d, lbl in sorted(holidays.items()))
+    color2name = {v: k for k, v in HOLIDAY_COLORS.items()}
+    holiday_lines = "\n".join(
+        f"{d}:{h['label']}:{color2name.get(h['color'], h['color'])}"
+        for d, h in sorted(holidays.items())
+    )
     return render_template(
         "admin_calendar.html",
         year=year, month=month, cal=cal,
@@ -485,19 +495,19 @@ def holidays_save():
     year  = int(request.form.get("year"))
     month = int(request.form.get("month"))
     raw = request.form.get("holiday_dates", "")
-    # 改行・カンマ区切りどちらも受け付け、"日:ラベル" 形式に正規化
+    # 改行・カンマ区切りどちらも受け付け、"日:ラベル:色" 形式に正規化
     tokens = []
     for line in raw.replace(",", "\n").splitlines():
         line = line.replace("：", ":").strip()
         if not line:
             continue
-        if ":" in line:
-            d, _, lbl = line.partition(":")
-            d = d.strip(); lbl = lbl.strip()
-            if d.isdigit():
-                tokens.append(f"{int(d)}:{lbl}" if lbl else f"{int(d)}:臨時休業")
-        elif line.isdigit():
-            tokens.append(f"{int(line)}:臨時休業")
+        parts = [p.strip() for p in line.split(":")]
+        d = parts[0]
+        if not d.isdigit():
+            continue
+        lbl = parts[1] if len(parts) > 1 and parts[1] else "臨時休業"
+        color = parts[2] if len(parts) > 2 and parts[2] else "赤"
+        tokens.append(f"{int(d)}:{lbl}:{color}")
     holiday_dates = ",".join(tokens)
     month_key = f"{year}-{month:02d}"
     existing = query("SELECT id FROM shift_config WHERE month=?", (month_key,))
