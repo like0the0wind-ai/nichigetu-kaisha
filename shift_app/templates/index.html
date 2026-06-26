@@ -231,10 +231,10 @@
             {% set d = "%04d-%02d-%02d"|format(year, month, day) %}
             {% set col = loop.index0 %}
             {% set is_today = (year == today.year and month == today.month and day == today.day) %}
-            <td class="{% if is_today %}today-cell{% endif %} {% if day in holiday_days %}holiday-cell{% endif %}">
+            <td class="{% if is_today %}today-cell{% endif %} {% if day in holidays %}holiday-cell{% endif %}">
               <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">{{ day }}</div>
-              {% if day in holiday_days %}
-              <span class="holiday-badge">{{ holiday_label }}</span>
+              {% if day in holidays %}
+              <span class="holiday-badge">{{ holidays[day] }}</span>
               {% else %}
               {% for sh in shift_map.get(d, []) %}
               <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
@@ -266,8 +266,8 @@
                 <span class="cal-list-dow">{{ ['月','火','水','木','金','土','日'][col] }}</span>
               </div>
               <div class="cal-list-shifts">
-                {% if day in holiday_days %}
-                  <span class="holiday-badge">{{ holiday_label }}</span>
+                {% if day in holidays %}
+                  <span class="holiday-badge">{{ holidays[day] }}</span>
                 {% elif shifts %}
                   {% for sh in shifts %}
                   <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
