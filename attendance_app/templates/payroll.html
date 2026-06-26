@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>給与管理 | ニチゲツ</title>
+  <title>給与管理 | ニチゲツシステム</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -141,7 +141,7 @@
 </head>
 <body>
   <header>
-    <h1>給与管理 — ニチゲツ</h1>
+    <h1>給与管理 — ニチゲツシステム</h1>
     <div class="nav-links">
       <a href="/admin">← 管理者画面</a>
       <a href="/admin/logout">ログアウト</a>
@@ -210,10 +210,6 @@
           <div class="form-row">
             <label>厚生年金（円）</label>
             <input type="number" name="pension" min="0" value="0" style="width:100%">
-          </div>
-          <div class="form-row">
-            <label>雇用保険（円）</label>
-            <input type="number" name="employment_insurance" min="0" value="0" style="width:100%">
           </div>
           <div class="form-row">
             <label>所得税（円）</label>
@@ -291,6 +287,7 @@
               <select name="fuyou_category" class="btn-sm">
                 <option value="103" {% if (e.fuyou_category or '103') == '103' %}selected{% endif %}>103万</option>
                 <option value="123" {% if e.fuyou_category == '123' %}selected{% endif %}>123万</option>
+                <option value="none" {% if e.fuyou_category == 'none' %}selected{% endif %}>扶養控除なし</option>
               </select>
             </form>
           </td>
@@ -341,6 +338,7 @@
           <select name="fuyou_category" id="m-fuyou-category">
             <option value="103">103万</option>
             <option value="123">123万</option>
+            <option value="none">扶養控除なし</option>
           </select>
         </div>
         <div class="form-row">

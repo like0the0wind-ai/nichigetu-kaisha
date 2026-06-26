@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>給与明細 {{ slip.employee_name }} | ニチゲツ</title>
+  <title>給与明細 {{ slip.employee_name }} | ニチゲツシステム</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -191,7 +191,7 @@
         </div>
         {% if slip.overtime_pay > 0 %}
         <div class="slip-row">
-          <span class="label">時間外手当（×1.25）</span>
+          <span class="label">時間外手当</span>
           <span class="amount">¥{{ "{:,}".format(slip.overtime_pay) }}</span>
         </div>
         {% endif %}
@@ -226,12 +226,6 @@
         <div class="slip-row">
           <span class="label">厚生年金</span>
           <span class="amount">¥{{ "{:,}".format(slip.pension) }}</span>
-        </div>
-        {% endif %}
-        {% if slip.employment_insurance > 0 %}
-        <div class="slip-row">
-          <span class="label">雇用保険</span>
-          <span class="amount">¥{{ "{:,}".format(slip.employment_insurance) }}</span>
         </div>
         {% endif %}
         {% if slip.income_tax > 0 %}

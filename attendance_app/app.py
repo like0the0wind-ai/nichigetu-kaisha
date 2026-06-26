@@ -413,7 +413,7 @@ def admin():
             emp.setdefault("other_income", 0)
             emp.setdefault("fuyou_category", "103")
         category = (emp["fuyou_category"] if emp and emp.get("fuyou_category") else "103")
-        fuyou_limit = FUYOU_LIMITS.get(category, FUYOU_LIMITS["103"])
+        fuyou_limit = FUYOU_LIMITS.get(category) if category != "none" else None
 
         # 年間レコード取得（記録ごとに当時の時給・設定を使って計算）
         yr_rows = query(
@@ -436,13 +436,17 @@ def admin():
             hourly_at    = int(emp_at["hourly_rate"] or 0) if emp_at else 0
             transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
 
-            pay = int(hourly_at * reg / 60) + int(hourly_at * 1.25 * ov / 60) + transport_at
+            pay = int(hourly_at * reg / 60) + int(hourly_at * ov / 60) + transport_at
             year_total += pay
 
         other_income = int(emp["other_income"] or 0) if emp else 0
         year_total += other_income
-        remaining = fuyou_limit - year_total
-        pct = min(100, int(year_total / fuyou_limit * 100))
+        if fuyou_limit:
+            remaining = fuyou_limit - year_total
+            pct = min(100, int(year_total / fuyou_limit * 100))
+        else:
+            remaining = None
+            pct = 0
 
         staff_summary.append({
             "name": n, "days": s["days"],
@@ -761,7 +765,7 @@ def _calc_year_end(name, year, adj):
         transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
         other_at     = int(emp_at["other_allowance"] or 0) if emp_at else 0
 
-        gross += int(hourly_at * std / 60) + int(hourly_at * 1.25 * over / 60) + other_at
+        gross += int(hourly_at * std / 60) + int(hourly_at * over / 60) + other_at
         total_transport += transport_at
         work_days += 1
 
@@ -1164,7 +1168,7 @@ def admin_payslip_all_excel():
 def _write_one_slip_row(ws, row_offset, name, days,
                         total_h, total_m, over_h, over_m, hourly,
                         base_pay, overtime_pay, transport,
-                        gross_pay, emp_insurance,
+                        gross_pay,
                         reiwa_year, month, df_start, df_end,
                         Font, Alignment, Border, Side, PatternFill):
     thin = Border(
@@ -1177,7 +1181,7 @@ def _write_one_slip_row(ws, row_offset, name, days,
     gray = PatternFill("solid", fgColor="DDDDDD")
     blue = PatternFill("solid", fgColor="B8CCE4")
 
-    NCOLS = 11  # 総列数
+    NCOLS = 10  # 総列数
 
     def cell(ro, co, val="", bold=False, align=ca, border=False, fill=None, size=11):
         c = ws.cell(row=row_offset + ro, column=co, value=val)
@@ -1206,14 +1210,13 @@ def _write_one_slip_row(ws, row_offset, name, days,
     # ── ヘッダー行 (row 1) ──
     headers = ["出勤日数", "労働時間", "残業時間", "時給",
                "基本給", "通勤手当", "総支給額",
-               "所得税", "雇用保険", "控除合計", "差引支給額"]
+               "所得税", "控除合計", "差引支給額"]
     for i, h in enumerate(headers):
         col = i + 1
-        fill = blue if i == 10 else gray
+        fill = blue if i == len(headers) - 1 else gray
         cell(1, col, h, align=ca, border=True, fill=fill)
 
     # ── データ行 (row 2) ──
-    net = gross_pay - emp_insurance
     values = [
         (f"{days}日",                   ca),
         (f"{total_h}:{total_m:02d}",    ca),
@@ -1223,13 +1226,12 @@ def _write_one_slip_row(ws, row_offset, name, days,
         (f"{transport:,}",              ra),
         (f"{gross_pay:,}",              ra),
         ("",                            ra),  # 所得税は手入力
-        (f"{emp_insurance:,}",          ra),
-        (f"{emp_insurance:,}",          ra),  # 控除合計＝雇用保険のみ
-        (f"{net:,}",                    ra),
+        ("",                            ra),  # 控除合計は手入力
+        (f"{gross_pay:,}",              ra),
     ]
     for i, (v, a) in enumerate(values):
         col = i + 1
-        is_net = (i == 11)
+        is_net = (i == len(values) - 1)
         cell(2, col, v, bold=is_net, align=a, border=True,
              fill=blue if is_net else None)
 
@@ -1254,8 +1256,8 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
     ws.page_setup.fitToHeight = 0
     ws.print_options.horizontalCentered = True
 
-    # 列幅（11列）
-    col_widths = [9, 10, 10, 9, 13, 11, 13, 10, 11, 11, 15]
+    # 列幅（10列）
+    col_widths = [9, 10, 10, 9, 13, 11, 13, 10, 11, 15]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
@@ -1287,14 +1289,13 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
         total_h, total_m = divmod(total_min, 60)
         over_h,  over_m  = divmod(over_min,  60)
         base_pay     = int(hourly * reg_min / 60)
-        overtime_pay = int(hourly * 1.25 * over_min / 60)
+        overtime_pay = int(hourly * over_min / 60)
         gross_pay    = base_pay + overtime_pay + transport + other_all
-        emp_insurance = int(gross_pay * 0.006)
 
         _write_one_slip_row(ws, row_off, name, days,
                             total_h, total_m, over_h, over_m, hourly,
                             base_pay, overtime_pay, transport,
-                            gross_pay, emp_insurance,
+                            gross_pay,
                             reiwa_year, month, df_start, df_end,
                             Font, Alignment, Border, Side, PatternFill)
 
@@ -1326,9 +1327,8 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     days       = len(results)
 
     base_pay     = int(hourly * reg_min / 60)
-    overtime_pay = int(hourly * 1.25 * over_min / 60)
+    overtime_pay = int(hourly * over_min / 60)
     gross_pay    = base_pay + overtime_pay + transport + other_all
-    emp_insurance = int(gross_pay * 0.006)  # 雇用保険：労働者負担0.6%
 
     # 令和年計算
     reiwa_year = date.fromisoformat(date_from).year - 2018
@@ -1438,13 +1438,10 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["D12"].alignment = right
     ws["D12"].border = thin
 
-    # 雇用保険
-    ws["B13"] = "雇用保険"
-    ws["B13"].font = Font(name="MS明朝", size=10)
-    ws["B13"].alignment = left
+    # 空白控除行
     ws["B13"].border = thin
     ws["C13"].border = thin
-    ws["D13"] = f"{emp_insurance:,}円"
+    ws["D13"] = "円"
     ws["D13"].font = Font(name="MS明朝", size=10)
     ws["D13"].alignment = right
     ws["D13"].border = thin
@@ -1474,7 +1471,7 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     ws["B16"].alignment = left
     ws["B16"].border = thin
     ws["C16"].border = thin
-    ws["D16"] = f"{gross_pay - emp_insurance:,}円"
+    ws["D16"] = f"{gross_pay:,}円"
     ws["D16"].font = Font(name="MS明朝", bold=True, size=10)
     ws["D16"].alignment = right
     ws["D16"].border = thin
@@ -1748,7 +1745,7 @@ def calc_payslip_data(emp, records_for_period):
         overtime_min += max(0, work_min - daily_regular_min)
 
     base_pay     = int(hourly * regular_min / 60)
-    overtime_pay = int(hourly * 1.25 * overtime_min / 60)
+    overtime_pay = int(hourly * overtime_min / 60)
     gross_pay    = base_pay + overtime_pay + emp["transport_allowance"] + emp["other_allowance"]
 
     return {
@@ -1814,7 +1811,7 @@ def admin_employee_save():
     other        = int(request.form.get("other_allowance", 0) or 0)
     other_income = int(request.form.get("other_income", 0) or 0)
     fuyou_category = request.form.get("fuyou_category", "103")
-    if fuyou_category not in ("103", "123"):
+    if fuyou_category not in ("103", "123", "none"):
         fuyou_category = "103"
     notes        = request.form.get("notes", "").strip()
 
@@ -1847,7 +1844,7 @@ def admin_employee_save():
 @admin_required
 def admin_employee_fuyou(emp_id):
     category = request.form.get("fuyou_category", "103")
-    if category not in ("103", "123"):
+    if category not in ("103", "123", "none"):
         category = "103"
     emp = query("SELECT * FROM employees WHERE id=?", (emp_id,))
     if emp:
