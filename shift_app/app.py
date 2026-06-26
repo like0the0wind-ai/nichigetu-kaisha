@@ -179,8 +179,34 @@ def init_db():
                 conn.commit()
             except Exception:
                 conn.rollback()
+        # shift_config に休業日カラムを追加
+        for col, defval in [
+            ("holiday_dates", "TEXT NOT NULL DEFAULT ''"),
+            ("holiday_label", "TEXT NOT NULL DEFAULT '臨時休業'"),
+        ]:
+            try:
+                cur.execute(f"ALTER TABLE shift_config ADD COLUMN {col} {defval}")
+                conn.commit()
+            except Exception:
+                conn.rollback()
     finally:
         conn.close()
+
+
+def get_holidays(year, month):
+    """指定月の休業日set と ラベル を返す"""
+    month_key = f"{year}-{month:02d}"
+    row = query("SELECT holiday_dates, holiday_label FROM shift_config WHERE month=?", (month_key,))
+    days = set()
+    label = "臨時休業"
+    if row:
+        for x in (row[0].get("holiday_dates") or "").split(","):
+            x = x.strip()
+            if x.isdigit():
+                days.add(int(x))
+        if row[0].get("holiday_label"):
+            label = row[0]["holiday_label"]
+    return days, label
 
 
 # ── Auth ──────────────────────────────────────────────────────────────
@@ -300,12 +326,14 @@ def index():
             else:
                 login_error = "パスワードが違います"
 
+    holiday_days, holiday_label = get_holidays(year, month)
     return render_template(
         "index.html",
         # カレンダー
         year=year, month=month, cal=cal,
         shift_map=shift_map, staff_rows=staff_rows,
         today=today,
+        holiday_days=holiday_days, holiday_label=holiday_label,
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
         month_name=f"{year}年{month}月",
@@ -422,15 +450,40 @@ def admin():
         next_year, next_month = year + 1, 1
     else:
         next_year, next_month = year, month + 1
+    holiday_days, holiday_label = get_holidays(year, month)
     return render_template(
         "admin_calendar.html",
         year=year, month=month, cal=cal,
         shift_map=shift_map, staff_rows=staff_rows,
         today=today,
+        holiday_days=holiday_days, holiday_label=holiday_label,
+        holiday_dates_str=",".join(str(d) for d in sorted(holiday_days)),
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month,
         month_name=f"{year}年{month}月",
     )
+
+
+# ── 休業日設定（管理者） ───────────────────────────────────────────────
+
+@app.route("/holidays/save", methods=["POST"])
+def holidays_save():
+    r = require_login()
+    if r:
+        return r
+    year  = int(request.form.get("year"))
+    month = int(request.form.get("month"))
+    holiday_dates = request.form.get("holiday_dates", "").strip()
+    holiday_label = request.form.get("holiday_label", "臨時休業").strip() or "臨時休業"
+    month_key = f"{year}-{month:02d}"
+    existing = query("SELECT id FROM shift_config WHERE month=?", (month_key,))
+    if existing:
+        execute("UPDATE shift_config SET holiday_dates=?, holiday_label=? WHERE month=?",
+                (holiday_dates, holiday_label, month_key))
+    else:
+        execute("INSERT INTO shift_config (month, holiday_dates, holiday_label) VALUES (?,?,?)",
+                (month_key, holiday_dates, holiday_label))
+    return redirect(url_for("admin", year=year, month=month))
 
 
 # ── シフト追加 ────────────────────────────────────────────────────────
