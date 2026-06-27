@@ -597,9 +597,10 @@ def shift_edit(shift_id):
         start_time = request.form.get("start_time", "").strip()
         end_time   = request.form.get("end_time", "").strip()
         memo       = request.form.get("memo", "").strip()
+        slot_label = request.form.get("slot_label", "").strip()
         execute(
-            "UPDATE shift_records SET start_time=?, end_time=?, memo=? WHERE id=?",
-            (start_time, end_time, memo, shift_id)
+            "UPDATE shift_records SET start_time=?, end_time=?, memo=?, slot_label=? WHERE id=?",
+            (start_time, end_time, memo, slot_label, shift_id)
         )
         row = query("SELECT shift_date FROM shift_records WHERE id=?", (shift_id,))
         if row:

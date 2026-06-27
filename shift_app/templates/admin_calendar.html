@@ -134,7 +134,7 @@
               </div>
               {% if day in holidays %}<span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>{% endif %}
               {% for sh in shift_map.get(d, []) %}
-              <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}')">
+              <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}','{{ sh.slot_label or '' }}')">
                 <span class="chip-info">{{ sh.staff_name }} {{ roles.get(sh.slot_label) or sh.memo or sh.slot_label }}</span>
                 <form method="post" action="/shift/delete/{{ sh.id }}" style="display:inline" onsubmit="event.stopPropagation();return confirm('削除？')">
                   <button class="chip-del" type="submit" onclick="event.stopPropagation()">✕</button>
@@ -270,6 +270,16 @@
       <h2>シフトを編集</h2>
       <form method="post" id="editForm">
         <div id="editLabel" style="font-size:.88rem;color:#7a4010;margin-bottom:.7rem;font-weight:bold"></div>
+        <label>役割（枠）</label>
+        <select name="slot_label" id="editSlot">
+          <option value="A">製造（A枠）</option>
+          <option value="B">レジ（B枠）</option>
+          <option value="C">レジ補助（C枠）</option>
+          <option value="D">品出し（D枠）</option>
+          <option value="M">マルシェ（M枠）</option>
+          <option value="仕込み">仕込み</option>
+          <option value="">（その他・メモ使用）</option>
+        </select>
         <label>開始</label>
         <input type="time" name="start_time" id="editStart" required>
         <label>終了</label>
@@ -290,9 +300,10 @@
       document.getElementById('addLabel').textContent = d;
       document.getElementById('addModal').classList.add('active');
     }
-    function openEdit(id, name, start, end, memo) {
+    function openEdit(id, name, start, end, memo, slot) {
       document.getElementById('editForm').action = '/shift/edit/' + id;
       document.getElementById('editLabel').textContent = name;
+      document.getElementById('editSlot').value = slot || '';
       document.getElementById('editStart').value = start;
       document.getElementById('editEnd').value = end;
       document.getElementById('editMemo').value = memo;
