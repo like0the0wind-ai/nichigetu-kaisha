@@ -68,6 +68,11 @@
     .cal-table td.today-cell { background: #fff5e0; }
     .day-num {
       font-size: .75rem; font-weight: bold; margin-bottom: .2rem;
+      display: flex; align-items: center; justify-content: space-between; gap: .2rem;
+    }
+    .day-count {
+      font-size: .6rem; font-weight: normal; color: #fff; background: #9a7a5a;
+      border-radius: 4px; padding: .05rem .3rem; white-space: nowrap;
     }
     .day-num.sat { color: #1a5a9a; }
     .day-num.sun { color: #9a1a1a; }
@@ -105,6 +110,7 @@
     .cal-list-date { flex-shrink: 0; width: 46px; text-align: center; padding-top: .1rem; }
     .cal-list-day { display: block; font-size: 1.15rem; font-weight: bold; line-height: 1.1; }
     .cal-list-dow { display: block; font-size: .72rem; color: #9a7a5a; }
+    .cal-list-count { display: inline-block; margin-top: .15rem; font-size: .62rem; color: #fff; background: #9a7a5a; border-radius: 4px; padding: .05rem .3rem; }
     .cal-list-date.sat .cal-list-day, .cal-list-date.sat .cal-list-dow { color: #1a5a9a; }
     .cal-list-date.sun .cal-list-day, .cal-list-date.sun .cal-list-dow { color: #9a1a1a; }
     .cal-list-shifts { flex: 1; display: flex; flex-direction: column; gap: .25rem; padding-top: .15rem; }
@@ -233,8 +239,12 @@
             {% set d = "%04d-%02d-%02d"|format(year, month, day) %}
             {% set col = loop.index0 %}
             {% set is_today = (year == today.year and month == today.month and day == today.day) %}
+            {% set daycnt = shift_map.get(d, [])|length %}
             <td class="{% if is_today %}today-cell{% endif %} {% if day in holidays %}holiday-cell{% endif %}">
-              <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">{{ day }}</div>
+              <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">
+                <span>{{ day }}</span>
+                {% if daycnt and day not in holidays %}<span class="day-count">出勤{{ daycnt }}名</span>{% endif %}
+              </div>
               {% if day in holidays %}
               <span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>
               {% else %}
@@ -267,6 +277,7 @@
               <div class="cal-list-date {% if col==5 %}sat{% elif col==6 %}sun{% endif %}">
                 <span class="cal-list-day">{{ day }}</span>
                 <span class="cal-list-dow">{{ ['月','火','水','木','金','土','日'][col] }}</span>
+                {% if shifts and day not in holidays %}<span class="cal-list-count">{{ shifts|length }}名</span>{% endif %}
               </div>
               <div class="cal-list-shifts">
                 {% if day in holidays %}
