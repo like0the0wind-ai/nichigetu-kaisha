@@ -121,6 +121,11 @@
             <input type="text" name="days_off_str" value="{{ s.days_off_str or '' }}" placeholder="例: 3,12,25">
             <p class="hint">日付の数字のみ（毎月更新）</p>
           </div>
+          <div class="field">
+            <label>日曜の開始時間</label>
+            <input type="time" name="sun_start" value="{{ s.sun_start or '' }}">
+            <p class="hint">日曜だけ別の開始時間にする（終了は+6時間）。空欄なら通常通り</p>
+          </div>
           <div class="field" style="min-width:240px">
             <label>期間内の出勤制限（日程調整）</label>
             <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
