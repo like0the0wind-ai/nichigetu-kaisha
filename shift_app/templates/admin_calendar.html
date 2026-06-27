@@ -129,7 +129,7 @@
             {% set is_today = (year == today.year and month == today.month and day == today.day) %}
             <td class="{% if is_today %}today-cell{% endif %} {% if day in holidays %}holiday-cell{% endif %}">
               <div class="day-num {% if col==5 %}sat{% elif col==6 %}sun{% endif %} {% if is_today %}today-num{% endif %}">
-                <span>{{ day }}</span>
+                <span>{{ day }}{% set dc = shift_map.get(d, [])|length %}{% if dc and day not in holidays %} <span style="font-size:.6rem;font-weight:normal;color:#fff;background:#9a7a5a;border-radius:4px;padding:.05rem .3rem">出勤{{ dc }}名</span>{% endif %}</span>
                 {% if staff_rows %}<button class="add-btn" onclick="openAdd('{{ d }}', {{ day }})">＋</button>{% endif %}
               </div>
               {% if day in holidays %}<span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>{% endif %}
