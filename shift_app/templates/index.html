@@ -193,6 +193,8 @@
     <a href="/request" class="btn-request">📝 シフト希望を出す</a>
   </div>
 
+  {% set roles = {'A':'製造','B':'レジ','C':'レジ補助','D':'品出し','M':'マルシェ','仕込み':'仕込み'} %}
+
   <!-- ① シフトカレンダー -->
   <div class="card">
     <div class="month-nav">
@@ -238,7 +240,7 @@
               {% else %}
               {% for sh in shift_map.get(d, []) %}
               <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
-                {{ sh.staff_name }} {{ sh.start_time }}〜{{ sh.end_time }}
+                {{ sh.staff_name }}{% if roles.get(sh.slot_label) %}［{{ roles.get(sh.slot_label) }}］{% endif %} {{ sh.start_time }}〜{{ sh.end_time }}
               </span>
               {% endfor %}
               {% endif %}
@@ -271,7 +273,7 @@
                 {% elif shifts %}
                   {% for sh in shifts %}
                   <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
-                    {{ sh.staff_name }} {{ sh.start_time }}〜{{ sh.end_time }}
+                    {{ sh.staff_name }}{% if roles.get(sh.slot_label) %}［{{ roles.get(sh.slot_label) }}］{% endif %} {{ sh.start_time }}〜{{ sh.end_time }}
                   </span>
                   {% endfor %}
                 {% else %}
