@@ -109,6 +109,7 @@
   {% endif %}
 
   <div class="card">
+    {% set roles = {'A':'製造','B':'レジ','C':'レジ補助','D':'品出し','M':'マルシェ','仕込み':'仕込み'} %}
     <table class="cal-table">
       <thead>
         <tr>
@@ -134,7 +135,7 @@
               {% if day in holidays %}<span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>{% endif %}
               {% for sh in shift_map.get(d, []) %}
               <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}')">
-                <span class="chip-info">{{ sh.staff_name }} {{ sh.slot_label }}</span>
+                <span class="chip-info">{{ sh.staff_name }} {{ roles.get(sh.slot_label, sh.slot_label) }}</span>
                 <form method="post" action="/shift/delete/{{ sh.id }}" style="display:inline" onsubmit="event.stopPropagation();return confirm('削除？')">
                   <button class="chip-del" type="submit" onclick="event.stopPropagation()">✕</button>
                 </form>
