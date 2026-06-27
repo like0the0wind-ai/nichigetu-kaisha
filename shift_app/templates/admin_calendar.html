@@ -135,7 +135,7 @@
               {% if day in holidays %}<span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>{% endif %}
               {% for sh in shift_map.get(d, []) %}
               <div class="shift-chip" style="background:{{ sh.color }}" onclick="openEdit({{ sh.id }},'{{ sh.staff_name }}','{{ sh.start_time }}','{{ sh.end_time }}','{{ sh.memo or '' }}')">
-                <span class="chip-info">{{ sh.staff_name }} {{ roles.get(sh.slot_label, sh.slot_label) }}</span>
+                <span class="chip-info">{{ sh.staff_name }} {{ roles.get(sh.slot_label) or sh.memo or sh.slot_label }}</span>
                 <form method="post" action="/shift/delete/{{ sh.id }}" style="display:inline" onsubmit="event.stopPropagation();return confirm('削除？')">
                   <button class="chip-del" type="submit" onclick="event.stopPropagation()">✕</button>
                 </form>
