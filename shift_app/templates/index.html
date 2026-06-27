@@ -239,8 +239,9 @@
               <span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>
               {% else %}
               {% for sh in shift_map.get(d, []) %}
+              {% set rlabel = roles.get(sh.slot_label) or sh.memo %}
               <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
-                {{ sh.staff_name }}{% if roles.get(sh.slot_label) %}［{{ roles.get(sh.slot_label) }}］{% endif %} {{ sh.start_time }}〜{{ sh.end_time }}
+                {{ sh.staff_name }}{% if rlabel %}［{{ rlabel }}］{% endif %} {{ sh.start_time }}〜{{ sh.end_time }}
               </span>
               {% endfor %}
               {% endif %}
@@ -272,8 +273,9 @@
                   <span class="holiday-badge" style="background:{{ holidays[day].color }}">{{ holidays[day].label }}</span>
                 {% elif shifts %}
                   {% for sh in shifts %}
+                  {% set rlabel = roles.get(sh.slot_label) or sh.memo %}
                   <span class="shift-chip" style="background:{{ sh.color }}" data-staff="{{ sh.staff_name }}">
-                    {{ sh.staff_name }}{% if roles.get(sh.slot_label) %}［{{ roles.get(sh.slot_label) }}］{% endif %} {{ sh.start_time }}〜{{ sh.end_time }}
+                    {{ sh.staff_name }}{% if rlabel %}［{{ rlabel }}］{% endif %} {{ sh.start_time }}〜{{ sh.end_time }}
                   </span>
                   {% endfor %}
                 {% else %}
