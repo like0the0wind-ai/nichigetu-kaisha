@@ -124,7 +124,12 @@
           <div class="field">
             <label>日曜の開始時間</label>
             <input type="time" name="sun_start" value="{{ s.sun_start or '' }}">
-            <p class="hint">日曜だけ別の開始時間にする（終了は+6時間）。空欄なら通常通り</p>
+            <p class="hint">日曜だけ別の開始時間にする。空欄なら通常通り</p>
+          </div>
+          <div class="field">
+            <label>1日の勤務時間（時間）</label>
+            <input type="number" name="work_hours" value="{{ s.work_hours or '' }}" min="0" max="12" step="0.5" placeholder="例: 6 / 5.5">
+            <p class="hint">終了時間を「開始＋この時間」に固定。空欄なら通常（6時間）</p>
           </div>
           <div class="field" style="min-width:240px">
             <label>期間内の出勤制限（日程調整）</label>

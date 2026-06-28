@@ -168,6 +168,7 @@ def init_db():
             ("avail_end",       "INTEGER NOT NULL DEFAULT 0"),
             ("avail_limit",     "INTEGER NOT NULL DEFAULT 0"),
             ("sun_start",       "TEXT NOT NULL DEFAULT ''"),
+            ("work_hours",      "TEXT NOT NULL DEFAULT ''"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE shift_staff ADD COLUMN {col} {defval}")
@@ -676,16 +677,17 @@ def staff():
             avail_end       = int(request.form.get("avail_end", 0) or 0)
             avail_limit     = int(request.form.get("avail_limit", 0) or 0)
             sun_start       = request.form.get("sun_start", "").strip()
+            work_hours      = request.form.get("work_hours", "").strip()
             same_day_ng     = request.form.get("same_day_ng", "").strip()
             days_off_str    = request.form.get("days_off_str", "").strip()
             color           = request.form.get("color", "#c87941")
             execute(
                 "UPDATE shift_staff SET color=?, allowed_slots=?, max_days=?, min_sun_days=?, wed_ok=?, sun_ok=?, "
                 "sun_only=?, sun_a_exclusive=?, wants_more=?, sun_undecided=?, avail_start=?, avail_end=?, avail_limit=?, "
-                "sun_start=?, same_day_ng=?, days_off_str=? WHERE id=?",
+                "sun_start=?, work_hours=?, same_day_ng=?, days_off_str=? WHERE id=?",
                 (color, allowed_slots, max_days, min_sun_days, wed_ok, sun_ok,
                  sun_only, sun_a_exclusive, wants_more, sun_undecided, avail_start, avail_end, avail_limit,
-                 sun_start, same_day_ng, days_off_str, sid)
+                 sun_start, work_hours, same_day_ng, days_off_str, sid)
             )
             msg = "スタッフ情報を更新しました"
 
@@ -849,9 +851,14 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
     }
 
     def plus6(start):
+        return add_hours(start, 6)
+
+    def add_hours(start, hours):
         try:
             h, m = map(int, start.split(":"))
-            return f"{(h+6) % 24:02d}:{m:02d}"
+            total = h * 60 + m + int(round(float(hours) * 60))
+            total %= 24 * 60
+            return f"{total // 60:02d}:{total % 60:02d}"
         except Exception:
             return start
 
@@ -885,6 +892,7 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
             "avail_end":       int(s.get("avail_end") or 0),
             "avail_limit":     int(s.get("avail_limit") or 0),
             "sun_start":       (s.get("sun_start") or "").strip(),
+            "work_hours":      (s.get("work_hours") or "").strip(),
             "same_day_ng":     same_day_ng,
             "days_off":        days_off,
         })
@@ -1004,10 +1012,13 @@ def _generate_shifts(year, month, staff_rows, marche_dates, holiday_dates=None):
                 avail_work_count[chosen] += 1
 
             start_t, end_t = SLOT_TIMES.get(slot, ("09:00", "17:00"))
-            # 日曜は、スタッフ個別の日曜開始時間があれば上書き（終了は+6時間）
+            # 日曜は、スタッフ個別の日曜開始時間があれば上書き
             if dow == 6 and chosen_s and chosen_s.get("sun_start"):
                 start_t = chosen_s["sun_start"]
                 end_t = plus6(start_t)
+            # スタッフ個別の勤務時間が設定されていれば終了時間を上書き
+            if chosen_s and chosen_s.get("work_hours"):
+                end_t = add_hours(start_t, chosen_s["work_hours"])
             memo = f"{slot}枠" if slot != "仕込み" else "仕込み"
             assignments.append((d.isoformat(), slot, chosen, start_t, end_t, memo))
 
