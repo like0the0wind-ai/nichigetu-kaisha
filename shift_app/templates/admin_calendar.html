@@ -150,6 +150,38 @@
     </table>
   </div>
 
+  <!-- スタッフ時間設定の確認 -->
+  {% if staff_rows %}
+  <div class="card">
+    <h2 style="font-size:.95rem;color:#7a4010;margin-bottom:.75rem;font-weight:normal">⏰ スタッフの時間設定</h2>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:420px">
+      <thead>
+        <tr>
+          <th style="background:#c8a878;padding:.5rem .6rem;font-weight:normal;color:#3a2010">名前</th>
+          <th style="background:#c8a878;padding:.5rem .6rem;font-weight:normal;color:#3a2010">入れる枠</th>
+          <th style="background:#c8a878;padding:.5rem .6rem;font-weight:normal;color:#3a2010">1日の勤務時間</th>
+          <th style="background:#c8a878;padding:.5rem .6rem;font-weight:normal;color:#3a2010">日曜開始</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in staff_rows %}
+        <tr>
+          <td style="padding:.45rem .6rem;border:1px solid #e8d5b5">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ s.color }};margin-right:.3rem"></span>{{ s.name }}
+          </td>
+          <td style="padding:.45rem .6rem;border:1px solid #e8d5b5;text-align:center">{{ s.allowed_slots or '—' }}</td>
+          <td style="padding:.45rem .6rem;border:1px solid #e8d5b5;text-align:center">{% if s.work_hours %}{{ s.work_hours }}時間{% else %}6時間（標準）{% endif %}</td>
+          <td style="padding:.45rem .6rem;border:1px solid #e8d5b5;text-align:center">{{ s.sun_start or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p style="font-size:.75rem;color:#9a7a5a;margin-top:.5rem">変更は <a href="/staff" style="color:#c87941">スタッフ管理</a> から</p>
+  </div>
+  {% endif %}
+
   <!-- 休業日設定 -->
   <div class="card">
     <h2 style="font-size:.95rem;color:#7a4010;margin-bottom:.75rem;font-weight:normal">🏖 {{ month_name }} の休業日・特記事項</h2>
