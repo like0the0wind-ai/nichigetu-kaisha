@@ -1232,8 +1232,7 @@ def _write_one_slip_row(ws, row_offset, name, days,
     for i, (v, a) in enumerate(values):
         col = i + 1
         is_net = (i == len(values) - 1)
-        cell(2, col, v, bold=is_net, align=a, border=True,
-             fill=blue if is_net else None)
+        cell(2, col, v, bold=is_net, align=a, border=True)
 
 
 def _make_all_payslip_excel(payslip_data, date_from, date_to):
