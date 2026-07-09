@@ -136,9 +136,9 @@
       </div>
       <button class="btn" type="submit">表示</button>
       {% if target and results %}
-      <a id="link_pdf" class="btn-excel" style="background:#c0392b" target="_blank"
+      <a id="link_pdf" class="btn-excel" style="background:#c0392b"
          href="/admin/payslip/pdf?name={{ target }}&from={{ date_from }}&to={{ date_to }}">
-        📄 PDF明細
+        📄 PDFダウンロード
       </a>
       <a id="link_dl" class="btn-excel"
          href="/admin/payslip?name={{ target }}&from={{ date_from }}&to={{ date_to }}&dl=1">

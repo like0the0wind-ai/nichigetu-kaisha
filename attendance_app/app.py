@@ -1171,19 +1171,127 @@ def admin_payslip_pdf():
 
     df_start = date.fromisoformat(date_from)
     df_end   = date.fromisoformat(date_to)
-    fmt = lambda n: "{:,}".format(n)
-    return render_template("payslip_pdf.html",
-        name=target, date_from=date_from, date_to=date_to,
-        reiwa_year=df_start.year - 2018, month=df_start.month,
-        period_label=pay_period_label(df_start, df_end),
-        pay_date=f"{df_end.year}年{df_end.month}月25日",
-        days=len(rows),
-        total_work=fmt_time(total_min), total_over=fmt_time(over_min) if over_min else "0:00",
-        hourly_fmt=fmt(hourly),
-        base_pay_fmt=fmt(base_pay), overtime_pay=overtime_pay, overtime_pay_fmt=fmt(overtime_pay),
-        transport=transport, transport_fmt=fmt(transport),
-        other_all=other_all, other_all_fmt=fmt(other_all),
-        gross_pay_fmt=fmt(gross_pay))
+    slip = {
+        "name": target,
+        "reiwa_year": df_start.year - 2018,
+        "month": df_start.month,
+        "period_label": pay_period_label(df_start, df_end),
+        "pay_date": f"{df_end.year}年{df_end.month}月25日",
+        "days": len(rows),
+        "total_work": fmt_time(total_min),
+        "total_over": fmt_time(over_min) if over_min else "0:00",
+        "hourly": hourly, "base_pay": base_pay, "overtime_pay": overtime_pay,
+        "transport": transport, "other_all": other_all, "gross_pay": gross_pay,
+    }
+    return _make_payslip_pdf(slip, date_from, date_to)
+
+
+def _make_payslip_pdf(slip, date_from, date_to):
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        from reportlab.lib.units import mm
+    except ImportError:
+        return "reportlab が未インストールです。", 500
+
+    # 日本語フォント（埋め込みTTF）を登録。失敗時はCIDフォントへフォールバック
+    FONT = "JPFont"
+    font_path = os.path.join(os.path.dirname(__file__),
+                             "static", "fonts", "SawarabiGothic-Regular.ttf")
+    try:
+        if FONT not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(FONT, font_path))
+    except Exception:
+        FONT = "HeiseiKakuGo-W5"
+        try:
+            pdfmetrics.registerFont(UnicodeCIDFont(FONT))
+        except Exception:
+            FONT = "Helvetica"
+
+    buf = io.BytesIO()
+    W, H = A4
+    c = canvas.Canvas(buf, pagesize=A4)
+    yen = lambda n: "¥{:,}".format(n)
+
+    left, right = 25*mm, W - 25*mm
+    y = H - 25*mm
+
+    # タイトル
+    c.setFont(FONT, 9)
+    c.drawCentredString(W/2, y, "パン屋ニチゲツ")
+    y -= 10*mm
+    c.setFont(FONT, 18)
+    c.drawCentredString(W/2, y, "給 与 明 細 書")
+    y -= 8*mm
+    c.setFont(FONT, 10)
+    c.drawCentredString(W/2, y, f"令和{slip['reiwa_year']}年{slip['month']}月分　（{slip['period_label']}）")
+    y -= 4*mm
+    c.setLineWidth(1.2)
+    c.line(left, y, right, y)
+    y -= 10*mm
+
+    # 氏名・支給日
+    c.setFont(FONT, 12)
+    c.drawString(left, y, f"{slip['name']} 様")
+    c.setFont(FONT, 10)
+    c.drawRightString(right, y, f"支給日：{slip['pay_date']}")
+    y -= 10*mm
+
+    # 勤怠情報
+    c.setFont(FONT, 10)
+    c.drawString(left, y,
+        f"出勤日数：{slip['days']}日　　総労働時間：{slip['total_work']}　　残業時間：{slip['total_over']}")
+    y -= 12*mm
+
+    # 支給明細
+    def row(label, amount, bold=False, line_above=False):
+        nonlocal y
+        if line_above:
+            c.setLineWidth(0.6)
+            c.line(left, y + 4*mm, right, y + 4*mm)
+        c.setFont(FONT, 12 if bold else 11)
+        c.drawString(left + 4*mm, y, label)
+        c.drawRightString(right - 4*mm, y, amount)
+        y -= 9*mm
+
+    c.setFont(FONT, 10)
+    c.drawString(left, y, "◆ 支給")
+    y -= 8*mm
+    row("基本給", yen(slip["base_pay"]))
+    if slip["overtime_pay"] > 0:
+        row("残業手当", yen(slip["overtime_pay"]))
+    if slip["transport"] > 0:
+        row("通勤手当", yen(slip["transport"]))
+    if slip["other_all"] > 0:
+        row("その他手当", yen(slip["other_all"]))
+    row("総支給額", yen(slip["gross_pay"]), bold=True, line_above=True)
+    y -= 6*mm
+
+    # 差引支給額ボックス
+    box_h = 16*mm
+    c.setFillColorRGB(0.78, 0.47, 0.25)
+    c.rect(left, y - box_h + 6*mm, right - left, box_h, fill=1, stroke=0)
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont(FONT, 12)
+    c.drawString(left + 6*mm, y - box_h + 12*mm, "差引支給額")
+    c.setFont(FONT, 16)
+    c.drawRightString(right - 6*mm, y - box_h + 11*mm, yen(slip["gross_pay"]))
+    c.setFillColorRGB(0, 0, 0)
+
+    # フッター
+    c.setFont(FONT, 8)
+    c.setFillColorRGB(0.6, 0.6, 0.6)
+    c.drawRightString(right, 20*mm, "発行: パン屋ニチゲツ")
+
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    filename = f"payslip_{slip['name']}_{date_from}_{date_to}.pdf"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/pdf")
 
 @app.route("/admin/payslip/all_excel")
 @admin_required
