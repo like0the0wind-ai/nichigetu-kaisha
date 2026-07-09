@@ -136,6 +136,10 @@
       </div>
       <button class="btn" type="submit">表示</button>
       {% if target and results %}
+      <a id="link_pdf" class="btn-excel" style="background:#c0392b" target="_blank"
+         href="/admin/payslip/pdf?name={{ target }}&from={{ date_from }}&to={{ date_to }}">
+        📄 PDF明細
+      </a>
       <a id="link_dl" class="btn-excel"
          href="/admin/payslip?name={{ target }}&from={{ date_from }}&to={{ date_to }}&dl=1">
         📥 Excel ダウンロード
@@ -152,10 +156,14 @@
       var t = document.getElementById('date_to').value;
       var all = document.getElementById('link_all');
       if (all) all.href = '/admin/payslip/all_excel?from=' + f + '&to=' + t;
+      var name = document.querySelector('select[name="name"]').value;
       var dl = document.getElementById('link_dl');
       if (dl) {
-        var name = document.querySelector('select[name="name"]').value;
         dl.href = '/admin/payslip?name=' + encodeURIComponent(name) + '&from=' + f + '&to=' + t + '&dl=1';
+      }
+      var pdf = document.getElementById('link_pdf');
+      if (pdf) {
+        pdf.href = '/admin/payslip/pdf?name=' + encodeURIComponent(name) + '&from=' + f + '&to=' + t;
       }
     }
     </script>

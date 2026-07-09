@@ -1131,6 +1131,60 @@ def admin_payslip():
         ye_adj=ye_adj,
         ye_result=ye_result)
 
+@app.route("/admin/payslip/pdf")
+@admin_required
+def admin_payslip_pdf():
+    target    = request.args.get("name", "")
+    default_start, default_end = current_pay_period()
+    date_from = request.args.get("from", default_start.isoformat())
+    date_to   = request.args.get("to",   default_end.isoformat())
+    if not target:
+        return redirect(url_for("admin_payslip"))
+
+    rows = query(
+        "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL ORDER BY clock_in",
+        (target, date_from, date_to)
+    )
+    total_min = over_min = 0
+    for r in rows:
+        ci = datetime.strptime(r["clock_in"], "%Y-%m-%d %H:%M:%S")
+        co = datetime.strptime(r["clock_out"], "%Y-%m-%d %H:%M:%S")
+        break_min = r["break_min"] or 0
+        ci_min = ceil15(ci.hour * 60 + ci.minute)
+        co_min = floor15(co.hour * 60 + co.minute)
+        total  = max(0, co_min - ci_min - break_min)
+        std    = min(total, STANDARD_HOURS * 60)
+        over   = floor15(max(0, total - STANDARD_HOURS * 60))
+        total_min += std + over
+        over_min  += over
+
+    emp = query("SELECT * FROM employees WHERE name=?", (target,))
+    emp = emp[0] if emp else {"hourly_rate": 0, "transport_allowance": 0, "other_allowance": 0}
+    hourly    = int(emp["hourly_rate"] or 0)
+    transport = int(emp["transport_allowance"] or 0)
+    other_all = int(emp["other_allowance"] or 0)
+
+    reg_min      = total_min - over_min
+    base_pay     = int(hourly * reg_min / 60)
+    overtime_pay = int(hourly * over_min / 60)
+    gross_pay    = base_pay + overtime_pay + transport + other_all
+
+    df_start = date.fromisoformat(date_from)
+    df_end   = date.fromisoformat(date_to)
+    fmt = lambda n: "{:,}".format(n)
+    return render_template("payslip_pdf.html",
+        name=target, date_from=date_from, date_to=date_to,
+        reiwa_year=df_start.year - 2018, month=df_start.month,
+        period_label=pay_period_label(df_start, df_end),
+        pay_date=f"{df_end.year}年{df_end.month}月25日",
+        days=len(rows),
+        total_work=fmt_time(total_min), total_over=fmt_time(over_min) if over_min else "0:00",
+        hourly_fmt=fmt(hourly),
+        base_pay_fmt=fmt(base_pay), overtime_pay=overtime_pay, overtime_pay_fmt=fmt(overtime_pay),
+        transport=transport, transport_fmt=fmt(transport),
+        other_all=other_all, other_all_fmt=fmt(other_all),
+        gross_pay_fmt=fmt(gross_pay))
+
 @app.route("/admin/payslip/all_excel")
 @admin_required
 def admin_payslip_all_excel():
