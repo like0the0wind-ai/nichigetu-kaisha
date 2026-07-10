@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ shop_name }}{% endblock %} | {{ shop_name }}</title>
+  <meta name="theme-color" content="#c87941">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #f5ede0 0%, #ece0cb 60%, #e2cfae 100%);
+      background-attachment: fixed;
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+      color: #3a2010;
+      padding-bottom: 80px;
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    header.site {
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid #d8bd93;
+      position: sticky; top: 0; z-index: 20;
+    }
+    .header-inner {
+      max-width: 960px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .9rem 1.1rem;
+    }
+    .brand { font-size: 1.15rem; letter-spacing: .18em; color: #7a4010; font-weight: bold; }
+    .brand small { display:block; font-size:.6rem; letter-spacing:.3em; color:#b08040; margin-top:2px;}
+    .cart-link {
+      position: relative;
+      background: #c87941; color:#fff;
+      padding: .5rem .95rem; border-radius: 22px;
+      font-size: .85rem; letter-spacing:.05em;
+      box-shadow: 0 3px 10px rgba(200,121,65,.3);
+    }
+    .cart-badge {
+      position: absolute; top:-7px; right:-7px;
+      background:#7a4010; color:#fff;
+      min-width: 20px; height:20px; border-radius:10px;
+      font-size:.7rem; display:flex; align-items:center; justify-content:center;
+      padding:0 5px;
+    }
+
+    main { max-width: 960px; margin: 0 auto; padding: 1.1rem; }
+
+    .flash { max-width:960px; margin: .8rem auto 0; padding: 0 1.1rem; }
+    .flash div {
+      padding:.7rem 1rem; border-radius:12px; margin-bottom:.5rem; font-size:.9rem;
+    }
+    .flash .ok   { background:#e3efe0; color:#3f6a3a; border:1px solid #b7d6ae; }
+    .flash .warn { background:#fbeadb; color:#a85a20; border:1px solid #e9c39a; }
+
+    .btn {
+      display:inline-block; text-align:center; cursor:pointer;
+      background:#c87941; color:#fff; border:none;
+      padding:.8rem 1.4rem; border-radius:26px;
+      font-size:1rem; font-family:inherit; letter-spacing:.05em;
+      box-shadow:0 4px 14px rgba(200,121,65,.3); transition:.15s;
+    }
+    .btn:active { transform:scale(.97); }
+    .btn.block { display:block; width:100%; }
+    .btn.ghost {
+      background:#fff; color:#7a4010; border:1.5px solid #d4b896; box-shadow:none;
+    }
+    .btn.small { padding:.5rem .9rem; font-size:.85rem; border-radius:20px; }
+
+    .card {
+      background: rgba(255,255,255,0.86);
+      border:1px solid #e2cfae; border-radius:18px;
+    }
+    .price { color:#c8501e; font-weight:bold; }
+    .muted { color:#8a6a4a; }
+
+    footer.site {
+      text-align:center; color:#9a7a56; font-size:.75rem;
+      padding:2rem 1rem; letter-spacing:.08em;
+    }
+    @media (min-width:640px){ .brand small{letter-spacing:.4em;} }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="site">
+    <div class="header-inner">
+      <a href="{{ url_for('index') }}" class="brand">
+        {{ shop_name }}<small>ONLINE STORE</small>
+      </a>
+      <a href="{{ url_for('cart_view') }}" class="cart-link">
+        🛒 カート
+        {% if cart_count %}<span class="cart-badge">{{ cart_count }}</span>{% endif %}
+      </a>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash">
+      {% for cat, msg in messages %}<div class="{{ cat }}">{{ msg }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="site">
+    © {{ shop_name }}　—　毎朝焼きたてをお届けします
+  </footer>
+</body>
+</html>

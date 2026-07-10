@@ -1,0 +1,31 @@
+# パン屋ニチゲツ オンラインショップ — Render Blueprint
+# Render で「New → Blueprint」からこのリポジトリを選ぶと、
+# 下記の Web サービスと PostgreSQL データベースが一括で作成されます。
+
+databases:
+  - name: nichigetsu-shop-db
+    databaseName: nichigetsu_shop
+    plan: free
+
+services:
+  - type: web
+    name: nichigetsu-shop
+    runtime: python
+    plan: free
+    rootDir: shop_app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      # 注文・商品データの保存先（上のDBから自動で接続文字列が入る）
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nichigetsu-shop-db
+          property: connectionString
+      # セッション用の秘密鍵（Renderが安全な値を自動生成）
+      - key: SECRET_KEY
+        generateValue: true
+      # 管理画面のパスワード（Render画面で自分で入力する）
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.0

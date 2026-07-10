@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}送料設定{% endblock %}
+{% block head %}
+<style>
+  .adminnav { display:flex; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .adminnav a { padding:.45rem 1rem; border-radius:20px; font-size:.85rem;
+                background:#fff; border:1px solid #d4b896; color:#7a5a3a;}
+  .adminnav a.active { background:#7a4010; color:#fff; border-color:#7a4010; }
+  .adminnav .spacer { flex:1; }
+  h1.page { font-size:1.2rem; color:#7a4010; letter-spacing:.1em; margin-bottom:.5rem;}
+  .note { background:#fbf4e8; border:1px dashed #d4b896; border-radius:12px;
+          padding:.7rem .9rem; font-size:.8rem; color:#6a4a2a; margin-bottom:1rem; line-height:1.7;}
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; min-width:520px;}
+  th, td { padding:.5rem .5rem; text-align:center; border-bottom:1px solid #eee1c9; font-size:.85rem;}
+  th { background:#f5ede0; color:#7a5a3a; font-weight:normal; font-size:.78rem; white-space:nowrap;}
+  th.region, td.region { text-align:left; position:sticky; left:0; background:#f5ede0; z-index:1; white-space:nowrap;}
+  td.region { background:#fbf6ec; color:#5a3a1a; font-weight:bold;}
+  th.used { background:#c87941; color:#fff;}
+  input.fee { width:64px; font-family:inherit; font-size:.9rem; text-align:right;
+              padding:.35rem .4rem; border:1.5px solid #e2cfae; border-radius:8px; background:#fff; color:#3a2010;}
+  input.fee.used { border-color:#c87941; background:#fffaf3;}
+  .save-bar { position:sticky; bottom:0; padding:1rem 0; }
+  .legend { font-size:.75rem; color:#8a6a4a; margin:.3rem 0 1rem;}
+  .legend b { color:#c87941;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="adminnav">
+  <a href="{{ url_for('admin') }}">注文管理</a>
+  <a href="{{ url_for('admin_products') }}">商品管理</a>
+  <a href="{{ url_for('admin_shipping') }}" class="active">送料設定</a>
+  <span class="spacer"></span>
+  <a href="{{ url_for('index') }}">ショップ表示</a>
+  <a href="{{ url_for('admin_logout') }}">ログアウト</a>
+</div>
+
+<h1 class="page">送料設定（ヤマト クール便 冷凍）</h1>
+<div class="note">
+  お届け先の<b>地域（行）</b>×<b>箱サイズ（列）</b>ごとに送料（円・税込）を入力してください。<br>
+  ・注文時は「お届け先の都道府県 → 地域」に自動変換して送料を計算します。<br>
+  ・複数商品を一緒に買った場合は、一番大きいサイズ1つ分の送料になります。<br>
+  ・<b>初期値は関東発の目安です。必ず実際のヤマト運賃表に合わせて修正してください。</b>
+</div>
+<div class="legend">オレンジ枠 = <b>現在ショップで販売中の商品が使っているサイズ</b>（優先して設定）</div>
+
+<form method="post">
+  <div class="tablewrap">
+    <table>
+      <tr>
+        <th class="region">地域＼サイズ</th>
+        {% for s in box_sizes %}
+        <th class="{{ 'used' if s in used_sizes else '' }}">{{ s }}</th>
+        {% endfor %}
+      </tr>
+      {% for r in regions %}
+      <tr>
+        <td class="region">{{ r }}</td>
+        {% for s in box_sizes %}
+        <td>
+          <input type="number" class="fee {{ 'used' if s in used_sizes else '' }}"
+                 name="fee_{{ r }}_{{ s }}" value="{{ grid[r][s] }}" min="0" step="10">
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="save-bar">
+    <button class="btn block" type="submit">送料設定を保存</button>
+  </div>
+</form>
+
+<details class="card" style="margin-top:1.2rem;padding:1rem 1.1rem;">
+  <summary style="cursor:pointer;color:#7a4010;font-size:.9rem;">地域に含まれる都道府県を確認</summary>
+  <div style="margin-top:.7rem;font-size:.82rem;color:#5a4030;line-height:1.9;">
+    {% for r in regions %}
+    <div><b style="color:#7a5a3a;">{{ r }}</b>：
+      {% for pref, region in pref_region.items() if region==r %}{{ pref }}{{ '' if loop.last else '・' }}{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</details>
+{% endblock %}

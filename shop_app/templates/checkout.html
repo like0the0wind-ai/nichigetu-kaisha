@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}ご注文手続き{% endblock %}
+{% block head %}
+<style>
+  h1.page { font-size:1.25rem; color:#7a4010; letter-spacing:.1em; margin-bottom:1rem; }
+  .sec { padding:1.1rem 1.2rem; margin-bottom:1rem; }
+  .sec h2 { font-size:.95rem; color:#7a4010; margin-bottom:.8rem; letter-spacing:.08em;
+            border-bottom:1px solid #e2cfae; padding-bottom:.5rem;}
+  .field { margin-bottom:.9rem; }
+  .field label { display:block; font-size:.82rem; color:#7a5a3a; margin-bottom:.3rem; }
+  .field .req { color:#c0392b; font-size:.72rem; margin-left:.3rem;}
+  .field input, .field textarea {
+    width:100%; font-family:inherit; font-size:1rem; color:#3a2010;
+    padding:.65rem .8rem; border:1.5px solid #d4b896; border-radius:12px;
+    background:#fff;
+  }
+  .field textarea { min-height:70px; resize:vertical; }
+  .pay label {
+    display:flex; align-items:flex-start; gap:.6rem; padding:.7rem .8rem;
+    border:1.5px solid #d4b896; border-radius:12px; margin-bottom:.6rem; cursor:pointer;
+    background:#fff; font-size:.9rem;
+  }
+  .pay input { margin-top:.25rem; }
+  .oitem { display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:.5rem;}
+  .line { display:flex; justify-content:space-between; margin-bottom:.5rem; font-size:.92rem;}
+  .total { font-size:1.2rem; font-weight:bold; border-top:1px dashed #d4b896; padding-top:.6rem; margin-top:.4rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page">ご注文手続き</h1>
+
+<form method="post" action="{{ url_for('checkout') }}">
+  <!-- ご注文内容 -->
+  <div class="card sec">
+    <h2>ご注文内容</h2>
+    {% for it in items %}
+    <div class="oitem">
+      <span>{{ it.product.name }} × {{ it.qty }}</span>
+      <span>¥{{ "{:,}".format(it.line_total) }}</span>
+    </div>
+    {% endfor %}
+    <div class="line" style="margin-top:.7rem;"><span>小計</span><span>¥{{ "{:,}".format(subtotal) }}</span></div>
+    <div class="line"><span>送料（クール便 冷凍・{{ box_count }}口）</span>
+      <span id="ship-cell">{% if form.prefecture %}¥{{ "{:,}".format(shipping) }}{% else %}<span class="muted" style="font-size:.82rem;">地域を選択</span>{% endif %}</span>
+    </div>
+    <div class="line total"><span>合計</span><span class="price" id="total-cell">{% if form.prefecture %}¥{{ "{:,}".format(total) }}{% else %}—{% endif %}</span></div>
+  </div>
+
+  <!-- お客様情報 -->
+  <div class="card sec">
+    <h2>お届け先</h2>
+    <div class="field">
+      <label>お名前<span class="req">必須</span></label>
+      <input type="text" name="customer_name" value="{{ form.customer_name or '' }}" required>
+    </div>
+    <div class="field">
+      <label>電話番号<span class="req">必須</span></label>
+      <input type="tel" name="phone" value="{{ form.phone or '' }}" required>
+    </div>
+    <div class="field">
+      <label>メールアドレス</label>
+      <input type="email" name="email" value="{{ form.email or '' }}" placeholder="ご注文確認のご連絡用">
+    </div>
+    <div class="field">
+      <label>郵便番号</label>
+      <input type="text" name="postal" value="{{ form.postal or '' }}" placeholder="123-4567">
+    </div>
+    <div class="field">
+      <label>都道府県<span class="req">必須</span></label>
+      <select name="prefecture" id="prefecture" required
+        style="width:100%;font-family:inherit;font-size:1rem;padding:.65rem .8rem;
+               border:1.5px solid #d4b896;border-radius:12px;background:#fff;color:#3a2010;">
+        <option value="">選択してください</option>
+        {% for pref in prefectures %}
+        <option value="{{ pref }}" {{ 'selected' if form.prefecture==pref else '' }}>{{ pref }}</option>
+        {% endfor %}
+      </select>
+      <div class="muted" style="font-size:.72rem;margin-top:.25rem;">お届け地域で送料（クール便）が決まります。</div>
+    </div>
+    <div class="field">
+      <label>ご住所（市区町村以降）<span class="req">必須</span></label>
+      <input type="text" name="address" value="{{ form.address or '' }}" placeholder="◯◯市△△町1-2-3" required>
+    </div>
+  </div>
+
+  <!-- 支払い方法 -->
+  <div class="card sec pay">
+    <h2>お支払い方法</h2>
+    {% for key, label in payment_methods.items() %}
+    <label>
+      <input type="radio" name="payment_method" value="{{ key }}"
+        {{ 'checked' if form.payment_method==key or (loop.first and not form.payment_method) else '' }}>
+      <span>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+
+  <!-- 備考 -->
+  <div class="card sec">
+    <h2>ご要望・備考</h2>
+    <div class="field">
+      <textarea name="note" placeholder="お届け希望日時、アレルギー等があればご記入ください">{{ form.note or '' }}</textarea>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:.7rem;">
+    <button type="submit" class="btn block">この内容で注文する</button>
+    <a href="{{ url_for('cart_view') }}" class="btn ghost block">カートに戻る</a>
+  </div>
+</form>
+
+<script>
+  // 都道府県 → 地域 → 送料 を画面上で自動計算（送料は商品ごとに合算済み）
+  var PREF_REGION = {{ pref_region|tojson }};
+  var SHIP_BY_REGION = {{ ship_by_region|tojson }};
+  var SUBTOTAL = {{ subtotal }};
+  var yen = function(n){ return '¥' + n.toLocaleString('ja-JP'); };
+
+  function updateShipping(){
+    var pref = document.getElementById('prefecture').value;
+    var shipCell = document.getElementById('ship-cell');
+    var totalCell = document.getElementById('total-cell');
+    if(!pref){
+      shipCell.innerHTML = '<span class="muted" style="font-size:.82rem;">地域を選択</span>';
+      totalCell.textContent = '—';
+      return;
+    }
+    var region = PREF_REGION[pref];
+    var fee = (SHIP_BY_REGION[region] != null) ? SHIP_BY_REGION[region] : 0;
+    if(fee > 0){
+      shipCell.textContent = yen(fee);
+    } else {
+      shipCell.innerHTML = '<span class="muted" style="font-size:.82rem;">別途ご連絡</span>';
+    }
+    totalCell.textContent = yen(SUBTOTAL + fee);
+  }
+  document.getElementById('prefecture').addEventListener('change', updateShipping);
+  updateShipping();
+</script>
+{% endblock %}
