@@ -15,6 +15,8 @@ def now_jst():
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "nichigetsu-shop-secret")
+# 管理ログインを長期間（1年）保持する
+app.permanent_session_lifetime = timedelta(days=365)
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "saito")
 
 # 送料・支払い方法などの設定
@@ -516,6 +518,7 @@ def admin_required(f):
 def admin_login():
     if request.method == "POST":
         if request.form.get("password") == ADMIN_PASSWORD:
+            session.permanent = True   # ブラウザを閉じてもログインを保持
             session["is_admin"] = True
             return redirect(request.args.get("next") or url_for("admin"))
         flash("パスワードが違います。", "warn")
