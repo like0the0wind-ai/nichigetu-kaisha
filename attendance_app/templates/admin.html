@@ -157,7 +157,7 @@
     <div class="period-label">給与期間: {{ period_label }}</div>
   </form>
 
-  {% if staff_summary %}
+  {% if fuyou_list %}
   <div class="fuyou-overview">
     <div class="fuyou-overview-title">扶養控除 残り一覧（{{ date_from[:4] }}年）</div>
     <table class="fuyou-table">
@@ -165,7 +165,7 @@
         <tr><th>スタッフ</th><th>年間収入</th><th>上限</th><th>残り</th></tr>
       </thead>
       <tbody>
-        {% for s in staff_summary %}
+        {% for s in fuyou_list %}
         <tr>
           <td>{{ s.name }}</td>
           <td>{{ "{:,}".format(s.year_total) }}円</td>
@@ -184,7 +184,9 @@
       </tbody>
     </table>
   </div>
+  {% endif %}
 
+  {% if staff_summary %}
   <div class="summary-cards">
     {% for s in staff_summary %}
     <div class="card">

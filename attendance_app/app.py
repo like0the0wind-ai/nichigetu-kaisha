@@ -410,8 +410,8 @@ def admin():
     year_start = date.fromisoformat(date_from).replace(month=1, day=1).isoformat()
     year_end   = date.fromisoformat(date_to).replace(month=12, day=31).isoformat()
 
-    staff_summary = []
-    for n, s in sorted(staff.items()):
+    def compute_fuyou(n):
+        """スタッフ n の当年の年間収入・扶養区分・残りを計算して返す"""
         emp_rows = query("SELECT * FROM employees WHERE name=?", (n,))
         emp = dict(emp_rows[0]) if emp_rows else None
         if emp:
@@ -421,7 +421,6 @@ def admin():
         category = (emp["fuyou_category"] if emp and emp.get("fuyou_category") else "103")
         fuyou_limit = FUYOU_LIMITS.get(category) if category != "none" else None
 
-        # 年間レコード取得（記録ごとに当時の時給・設定を使って計算）
         yr_rows = query(
             "SELECT * FROM records WHERE name=? AND date(clock_in) BETWEEN ? AND ? AND clock_out IS NOT NULL",
             (n, year_start, year_end)
@@ -436,14 +435,11 @@ def admin():
             tot  = max(0, co_m - ci_m - bm)
             ov   = max(0, tot - STANDARD_HOURS * 60)
             reg  = tot - ov
-
             rec_date = ci.strftime("%Y-%m-%d")
             emp_at = get_emp_at(n, rec_date)
             hourly_at    = int(emp_at["hourly_rate"] or 0) if emp_at else 0
             transport_at = int(emp_at["transport_allowance"] or 0) if emp_at else 0
-
-            pay = int(hourly_at * reg / 60) + int(hourly_at * ov / 60) + transport_at
-            year_total += pay
+            year_total += int(hourly_at * reg / 60) + int(hourly_at * ov / 60) + transport_at
 
         other_income = int(emp["other_income"] or 0) if emp else 0
         year_total += other_income
@@ -453,22 +449,31 @@ def admin():
         else:
             remaining = None
             pct = 0
+        return {
+            "name": n, "year_total": year_total, "remaining": remaining,
+            "pct": pct, "fuyou_category": category, "fuyou_limit": fuyou_limit,
+            "other_income": other_income,
+        }
 
-        staff_summary.append({
-            "name": n, "days": s["days"],
+    # 期間内に打刻のあるスタッフのカード
+    staff_summary = []
+    for n, s in sorted(staff.items()):
+        f = compute_fuyou(n)
+        f.update({
+            "days": s["days"],
             "total": fmt_time(s["total_min"]),
             "overtime": fmt_time(s["over_min"]) if s["over_min"] else "—",
             "total_min": s["total_min"], "over_min": s["over_min"],
-            "year_total": year_total,
-            "remaining": remaining,
-            "pct": pct,
-            "fuyou_category": category,
-            "fuyou_limit": fuyou_limit,
-            "other_income": other_income,
         })
+        staff_summary.append(f)
+
+    # 扶養控除 残り一覧（全登録スタッフを対象・期間に関係なく常に表示）
+    all_names = [r["name"] for r in query("SELECT name FROM staff ORDER BY name")]
+    fuyou_list = [compute_fuyou(n) for n in all_names]
 
     return render_template("admin.html",
         staff_summary=staff_summary,
+        fuyou_list=fuyou_list,
         date_from=date_from, date_to=date_to,
         period_label=pay_period_label(
             date.fromisoformat(date_from), date.fromisoformat(date_to)))
