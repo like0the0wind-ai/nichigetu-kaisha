@@ -19,6 +19,12 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "saito")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
+@app.errorhandler(500)
+def _err500(e):
+    import traceback
+    return "<pre>" + traceback.format_exc() + "</pre>", 500
+
+
 def get_db():
     if DATABASE_URL:
         import psycopg2, psycopg2.extras
