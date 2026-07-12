@@ -107,6 +107,9 @@ def init_db():
                 fuyou_target        INTEGER NOT NULL DEFAULT 0
             )
         """)
+        # ここまでのCREATE TABLEを確定させる。
+        # （この後のALTER失敗時のrollbackで未コミットのbreaks等が巻き戻るのを防ぐ）
+        conn.commit()
         for col_sql in [
             "ALTER TABLE employees ADD COLUMN fuyou_target INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE employees ADD COLUMN other_income INTEGER NOT NULL DEFAULT 0",
