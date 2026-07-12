@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block head %}
+<style>
+  .back { display:inline-block; margin-bottom:.9rem; font-size:.85rem; color:#8a6a4a; }
+  .detail { overflow:hidden; }
+  .big-thumb {
+    position:relative;
+    aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;
+    font-size:6rem; background:linear-gradient(160deg,#faf3e7,#efe0c8); overflow:hidden;
+  }
+  .big-thumb img { width:100%; height:100%; object-fit:cover; }
+  .big-thumb.is-sold, .big-thumb.is-sold img { filter:grayscale(.7) opacity(.75); }
+  .big-thumb .sold-ribbon {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(192,57,43,.92); color:#fff; font-size:1.1rem; font-weight:bold;
+    letter-spacing:.1em; padding:.5rem 1.4rem; border-radius:8px;
+  }
+  .badge { display:inline-block; font-size:.75rem; font-weight:bold; padding:.2rem .7rem; border-radius:20px; margin-left:.5rem; vertical-align:middle;}
+  .badge.on { background:#e8f3e5; color:#3f6a3a; }
+  .badge.off { background:#fbe6e3; color:#c0392b; }
+  .detail .body { padding:1.2rem 1.2rem 1.4rem; }
+  .detail .cat { font-size:.72rem; color:#b08040; letter-spacing:.1em;}
+  .detail h1 { font-size:1.35rem; color:#5a3010; margin:.3rem 0 .6rem; }
+  .detail .price { font-size:1.5rem; }
+  .desc { margin:1rem 0; color:#5a4030; white-space:pre-wrap; }
+  .stock { font-size:.82rem; margin-bottom:1rem; }
+  .stock.ok { color:#3f6a3a; } .stock.no { color:#c0392b; }
+  .qtyrow { display:flex; align-items:center; gap:.8rem; margin-bottom:1.1rem; }
+  .qtyrow label { font-size:.9rem; }
+  select.qty {
+    font-family:inherit; font-size:1rem; padding:.5rem .8rem;
+    border:1.5px solid #d4b896; border-radius:12px; background:#fff;
+  }
+  .actions { display:flex; gap:.7rem; }
+  .actions form { flex:1; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set is_sold = product.sold_out or product.stock <= 0 %}
+<a href="{{ url_for('index') }}" class="back">← 商品一覧へ</a>
+
+<div class="card detail">
+  <div class="big-thumb {{ 'is-sold' if is_sold else '' }}">
+    {% if product.image_url and product.image_url.startswith('http') %}
+      <img src="{{ product.image_url }}" alt="{{ product.name }}">
+    {% else %}
+      {{ product.image_url or '🍞' }}
+    {% endif %}
+    {% if is_sold %}<span class="sold-ribbon">SOLD OUT</span>{% endif %}
+  </div>
+  <div class="body">
+    {% if product.category %}<div class="cat">{{ product.category }}</div>{% endif %}
+    <h1>{{ product.name }}{% if is_sold %}<span class="badge off">SOLD OUT</span>{% else %}<span class="badge on">販売中</span>{% endif %}</h1>
+    <div class="price">¥{{ "{:,}".format(product.price) }}<span style="font-size:.8rem;color:#8a6a4a;">（税込・送料別）</span></div>
+    <div class="muted" style="font-size:.8rem;margin-top:.3rem;">🚚 ヤマト クール便（冷凍）{{ product.size }}サイズでお届け／送料はレジでお届け先を選ぶと表示されます</div>
+
+    {% if product.description %}<p class="desc">{{ product.description }}</p>{% endif %}
+
+    {% if not is_sold %}
+      <div class="stock ok">在庫あり（残り {{ product.stock }} 個）</div>
+      <div class="qtyrow">
+        <label>数量</label>
+        <select class="qty" form="addform" name="qty">
+          {% for n in range(1, (product.stock if product.stock < 10 else 10) + 1) %}
+          <option value="{{ n }}">{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="actions">
+        <form id="addform" method="post" action="{{ url_for('cart_add') }}">
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          <button class="btn ghost block" type="submit">カートに入れる</button>
+        </form>
+        <form method="post" action="{{ url_for('cart_add') }}">
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          <input type="hidden" name="qty" value="1">
+          <input type="hidden" name="buy_now" value="1">
+          <button class="btn block" type="submit">すぐ購入</button>
+        </form>
+      </div>
+    {% else %}
+      <div class="stock no">申し訳ございません、ただいまSOLD OUT（売り切れ）です。</div>
+      <button class="btn ghost block" disabled style="opacity:.5;">SOLD OUT</button>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

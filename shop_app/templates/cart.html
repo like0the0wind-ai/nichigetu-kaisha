@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}カート{% endblock %}
+{% block head %}
+<style>
+  h1.page { font-size:1.25rem; color:#7a4010; letter-spacing:.1em; margin-bottom:1rem; }
+  .citem { display:flex; gap:.9rem; padding:.9rem; margin-bottom:.8rem; align-items:center;}
+  .cthumb {
+    width:64px; height:64px; flex-shrink:0; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; font-size:2rem;
+    background:linear-gradient(160deg,#faf3e7,#efe0c8); overflow:hidden;
+  }
+  .cthumb img { width:100%; height:100%; object-fit:cover; }
+  .cinfo { flex:1; min-width:0; }
+  .cinfo .n { font-weight:bold; font-size:.95rem; }
+  .cinfo .p { color:#c8501e; font-size:.85rem; margin-top:2px;}
+  .cqty { display:flex; align-items:center; gap:.5rem; }
+  .cqty select {
+    font-family:inherit; padding:.35rem .5rem; border:1.5px solid #d4b896;
+    border-radius:10px; background:#fff;
+  }
+  .remove { color:#b06040; font-size:.75rem; background:none; border:none; cursor:pointer; }
+  .summary { padding:1.1rem 1.2rem; margin-top:1rem; }
+  .summary .line { display:flex; justify-content:space-between; margin-bottom:.5rem; font-size:.92rem;}
+  .summary .total { font-size:1.2rem; font-weight:bold; border-top:1px dashed #d4b896; padding-top:.6rem; margin-top:.4rem;}
+  .empty { text-align:center; padding:3rem 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page">🛒 ショッピングカート</h1>
+
+{% if items %}
+<form method="post" action="{{ url_for('cart_update') }}">
+  {% for it in items %}
+  <div class="card citem">
+    <a href="{{ url_for('product_detail', pid=it.product.id) }}" class="cthumb">
+      {% if it.product.image_url and it.product.image_url.startswith('http') %}
+        <img src="{{ it.product.image_url }}" alt="">
+      {% else %}{{ it.product.image_url or '🍞' }}{% endif %}
+    </a>
+    <div class="cinfo">
+      <div class="n">{{ it.product.name }}</div>
+      <div class="p">¥{{ "{:,}".format(it.product.price) }} × {{ it.qty }} = ¥{{ "{:,}".format(it.line_total) }}</div>
+      <div class="cqty" style="margin-top:.4rem;">
+        <select name="qty_{{ it.product.id }}" onchange="this.form.submit()">
+          {% set maxq = it.product.stock if it.product.stock and it.product.stock >= it.qty else it.qty %}
+          {% for n in range(1, (maxq if maxq < 20 else 20) + 1) %}
+          <option value="{{ n }}" {{ 'selected' if n==it.qty else '' }}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" formaction="{{ url_for('cart_remove', pid=it.product.id) }}" class="remove">削除</button>
+  </div>
+  {% endfor %}
+</form>
+
+<div class="card summary">
+  <div class="line"><span>小計</span><span>¥{{ "{:,}".format(subtotal) }}</span></div>
+  <div class="line">
+    <span>送料（クール便 冷凍）</span>
+    <span class="muted" style="font-size:.82rem;">レジでお届け先を選択</span>
+  </div>
+  <div class="line total"><span>商品合計（送料別）</span><span class="price">¥{{ "{:,}".format(subtotal) }}</span></div>
+  <p class="muted" style="font-size:.75rem;margin-top:.4rem;">
+    ※クール便（冷凍）で <b>商品ごと</b> にお届けし、送料は<b>商品1点ごと</b>に加算されます。金額はお届け先の地域により異なります。
+  </p>
+</div>
+
+<div style="margin-top:1.2rem; display:flex; flex-direction:column; gap:.7rem;">
+  <a href="{{ url_for('checkout') }}" class="btn block">レジに進む</a>
+  <a href="{{ url_for('index') }}" class="btn ghost block">買い物を続ける</a>
+</div>
+
+{% else %}
+<div class="card empty">
+  <p style="font-size:2.5rem;">🛒</p>
+  <p class="muted" style="margin:.8rem 0 1.4rem;">カートは空です。</p>
+  <a href="{{ url_for('index') }}" class="btn">商品を見る</a>
+</div>
+{% endif %}
+{% endblock %}

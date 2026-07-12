@@ -1,0 +1,27 @@
+# パン屋ニチゲツ オンラインショップ — Render Blueprint
+# データベースは無料の外部サービス「Neon」を使用（期限なし・ずっと無料）。
+# Render で「New → Blueprint」からこのリポジトリを選ぶと Web サービスが作成されます。
+# デプロイ時に DATABASE_URL に Neon の接続文字列、ADMIN_PASSWORD にお好きな
+# パスワードを入力してください。
+
+services:
+  - type: web
+    name: nichigetsu-shop
+    runtime: python
+    plan: free
+    rootDir: shop_app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      # 注文・商品データの保存先（Neonの接続文字列を貼り付ける）
+      # 例: postgresql://user:pass@ep-xxxx.ap-southeast-1.aws.neon.tech/dbname?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # セッション用の秘密鍵（Renderが安全な値を自動生成）
+      - key: SECRET_KEY
+        generateValue: true
+      # 管理画面のパスワード（Render画面で自分で入力する）
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.0

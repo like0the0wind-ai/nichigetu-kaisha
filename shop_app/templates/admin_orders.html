@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}注文管理{% endblock %}
+{% block head %}
+<style>
+  .adminnav { display:flex; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .adminnav a { padding:.45rem 1rem; border-radius:20px; font-size:.85rem;
+                background:#fff; border:1px solid #d4b896; color:#7a5a3a;}
+  .adminnav a.active { background:#7a4010; color:#fff; border-color:#7a4010; }
+  .adminnav .spacer { flex:1; }
+  h1.page { font-size:1.2rem; color:#7a4010; letter-spacing:.1em; margin-bottom:.8rem;}
+  .filters { display:flex; gap:.4rem; overflow-x:auto; margin-bottom:1rem; }
+  .filters a { white-space:nowrap; padding:.35rem .85rem; border-radius:16px; font-size:.8rem;
+               background:#fff; border:1px solid #d4b896; color:#7a5a3a;}
+  .filters a.active { background:#c87941; color:#fff; border-color:#c87941;}
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:14px; overflow:hidden;}
+  th, td { padding:.6rem .7rem; text-align:left; font-size:.85rem; border-bottom:1px solid #eee1c9;}
+  th { background:#f5ede0; color:#7a5a3a; font-weight:normal; font-size:.78rem;}
+  tr:active { background:#faf3e7; }
+  .st { display:inline-block; padding:.15rem .6rem; border-radius:12px; font-size:.72rem;}
+  .st-新規 { background:#c87941; color:#fff;}
+  .st-対応中 { background:#e8c98a; color:#6a4a10;}
+  .st-発送済み { background:#4a7a4a; color:#fff;}
+  .st-完了 { background:#d8d0c0; color:#5a4a3a;}
+  .st-キャンセル { background:#d8b0a0; color:#7a3020;}
+  .tablewrap { overflow-x:auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="adminnav">
+  <a href="{{ url_for('admin') }}" class="active">注文管理{% if new_count %}（新規{{ new_count }}）{% endif %}</a>
+  <a href="{{ url_for('admin_products') }}">商品管理</a>
+  <a href="{{ url_for('admin_shipping') }}">送料設定</a>
+  <span class="spacer"></span>
+  <a href="{{ url_for('index') }}">ショップ表示</a>
+  <a href="{{ url_for('admin_logout') }}">ログアウト</a>
+</div>
+
+<h1 class="page">注文管理</h1>
+
+<div class="filters">
+  <a href="{{ url_for('admin') }}" class="{{ '' if current_status else 'active' }}">すべて</a>
+  {% for s in ['新規','対応中','発送済み','完了','キャンセル'] %}
+  <a href="{{ url_for('admin', status=s) }}" class="{{ 'active' if current_status==s else '' }}">{{ s }}</a>
+  {% endfor %}
+</div>
+
+{% if orders %}
+<div class="tablewrap">
+<table>
+  <tr><th>#</th><th>日時</th><th>お客様</th><th>金額</th><th>支払</th><th>状態</th></tr>
+  {% for o in orders %}
+  <tr onclick="location.href='{{ url_for('admin_order', order_id=o.id) }}'" style="cursor:pointer;">
+    <td>#{{ "%04d"|format(o.id) }}</td>
+    <td>{{ o.created_at[5:16] }}</td>
+    <td>{{ o.customer_name }}</td>
+    <td>¥{{ "{:,}".format(o.total) }}</td>
+    <td>{{ '代引' if o.payment_method=='cod' else '振込' if o.payment_method=='bank' else o.payment_method }}</td>
+    <td><span class="st st-{{ o.status }}">{{ o.status }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<p class="muted" style="text-align:center;padding:3rem 0;">まだ注文はありません。</p>
+{% endif %}
+{% endblock %}
