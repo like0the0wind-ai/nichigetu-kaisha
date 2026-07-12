@@ -17,11 +17,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "nichigetsu-secret")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "saito")
 
-@app.errorhandler(Exception)
-def _debug_err(e):
-    import traceback
-    return "<pre>" + traceback.format_exc() + "</pre>", 500
-
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # ── DB ────────────────────────────────────────────────────────────
