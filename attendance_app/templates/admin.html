@@ -61,6 +61,19 @@
     .fuyou-label { font-size: .72rem; color: #7a4010; margin-top: .25rem; }
     .fuyou-remain { font-weight: bold; color: #3a7a3a; }
     .fuyou-remain.over { color: #c03030; }
+    .fuyou-overview {
+      background: rgba(255,255,255,0.85); border: 1px solid #c8a878;
+      border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1.25rem;
+      box-shadow: 0 2px 8px rgba(120,70,20,.1);
+    }
+    .fuyou-overview-title { font-size: .95rem; color: #7a4010; margin-bottom: .7rem; letter-spacing: .08em; }
+    .fuyou-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    .fuyou-table th { background: #e8d5b5; padding: .5rem .7rem; text-align: left; color: #5a3010; font-weight: normal; }
+    .fuyou-table td { padding: .5rem .7rem; border-top: 1px solid #e8d5b5; }
+    .fuyou-table tr:hover td { background: #f5ede0; }
+    .fo-ok   { font-weight: bold; color: #3a7a3a; }
+    .fo-over { font-weight: bold; color: #c03030; }
+    .fo-none { color: #9a7a5a; }
     .fuyou-remain-big { margin-top: .35rem; font-size: .78rem; color: #7a4010; }
     .fuyou-remain-big .amt { font-size: 1.15rem; font-weight: bold; color: #3a7a3a; }
     .fuyou-remain-big .amt.over { color: #c03030; }
@@ -145,6 +158,33 @@
   </form>
 
   {% if staff_summary %}
+  <div class="fuyou-overview">
+    <div class="fuyou-overview-title">扶養控除 残り一覧（{{ date_from[:4] }}年）</div>
+    <table class="fuyou-table">
+      <thead>
+        <tr><th>スタッフ</th><th>年間収入</th><th>上限</th><th>残り</th></tr>
+      </thead>
+      <tbody>
+        {% for s in staff_summary %}
+        <tr>
+          <td>{{ s.name }}</td>
+          <td>{{ "{:,}".format(s.year_total) }}円</td>
+          <td>{% if s.fuyou_category == 'none' %}—{% else %}{{ s.fuyou_category }}万円{% endif %}</td>
+          <td>
+            {% if s.fuyou_category == 'none' %}
+              <span class="fo-none">対象外</span>
+            {% elif s.remaining >= 0 %}
+              <span class="fo-ok">あと {{ "{:,}".format(s.remaining) }}円</span>
+            {% else %}
+              <span class="fo-over">{{ "{:,}".format(-s.remaining) }}円 超過</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
   <div class="summary-cards">
     {% for s in staff_summary %}
     <div class="card">
