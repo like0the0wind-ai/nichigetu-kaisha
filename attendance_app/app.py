@@ -328,7 +328,10 @@ def index():
         name = s["name"]
         rec = query("SELECT id FROM records WHERE name=? AND clock_out IS NULL", (name,))
         if rec:
-            br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec[0]["id"],))
+            try:
+                br = query("SELECT id FROM breaks WHERE record_id=? AND break_end IS NULL", (rec[0]["id"],))
+            except Exception:
+                br = None
             status = "break" if br else "in"
         else:
             status = "out"
