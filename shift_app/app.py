@@ -19,12 +19,6 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "saito")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
-@app.errorhandler(500)
-def _err500(e):
-    import traceback
-    return "<pre>" + traceback.format_exc() + "</pre>", 500
-
-
 def get_db():
     if DATABASE_URL:
         import psycopg2, psycopg2.extras
@@ -214,7 +208,10 @@ def get_holidays(year, month):
     （旧形式 "5,15" や "5:臨時休業" も許容）
     """
     month_key = f"{year}-{month:02d}"
-    row = query("SELECT holiday_dates, holiday_label FROM shift_config WHERE month=?", (month_key,))
+    try:
+        row = query("SELECT holiday_dates, holiday_label FROM shift_config WHERE month=?", (month_key,))
+    except Exception:
+        row = None
     holidays = {}
     if row:
         default_label = row[0].get("holiday_label") or "臨時休業"
