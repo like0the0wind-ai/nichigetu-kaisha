@@ -1455,9 +1455,9 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
         other_all = int(emp["other_allowance"] or 0)
         days      = len(results)
 
-        total_min    = sum(r["work_min"] for r in results)
-        over_min     = sum(r["over_min"] for r in results)
-        reg_min      = total_min - over_min
+        reg_min      = sum(r["work_min"] for r in results)   # 通常労働（残業を含まない）
+        over_min     = sum(r["over_min"] for r in results)   # 残業
+        total_min    = reg_min + over_min                    # 総労働時間
         total_h, total_m = divmod(total_min, 60)
         over_h,  over_m  = divmod(over_min,  60)
         base_pay     = int(hourly * reg_min / 60)
@@ -1491,9 +1491,9 @@ def _make_payslip_excel(name, date_from, date_to, results, emp=None):
     transport = emp["transport_allowance"]
     other_all = emp["other_allowance"]
 
-    total_min  = sum(r["work_min"] for r in results)
-    over_min   = sum(r["over_min"] for r in results)
-    reg_min    = total_min - over_min
+    reg_min    = sum(r["work_min"] for r in results)   # 通常労働（残業を含まない）
+    over_min   = sum(r["over_min"] for r in results)   # 残業
+    total_min  = reg_min + over_min                    # 総労働時間
     total_h    = total_min // 60
     total_m    = total_min % 60
     days       = len(results)
