@@ -1189,8 +1189,8 @@ def admin_payslip_pdf():
         "period_label": pay_period_label(df_start, df_end),
         "pay_date": f"{df_end.year}年{df_end.month}月25日",
         "days": len(rows),
-        "total_work": fmt_time(total_min),
-        "total_over": fmt_time(over_min) if over_min else "0:00",
+        # 明細書なので「30時間30分」の表記にする（画面表示のfmt_timeとは別）
+        "total_work": f"{total_min // 60}時間{total_min % 60:02d}分",
         "hourly": hourly, "base_pay": base_pay, "overtime_pay": overtime_pay,
         "transport": transport, "other_all": other_all, "gross_pay": gross_pay,
     }
