@@ -1354,7 +1354,7 @@ def _write_one_slip_row(ws, row_offset, name, days,
     gray = PatternFill("solid", fgColor="DDDDDD")
     blue = PatternFill("solid", fgColor="B8CCE4")
 
-    NCOLS = 10  # 総列数
+    NCOLS = 9  # 総列数
 
     def cell(ro, co, val="", bold=False, align=ca, border=False, fill=None, size=11):
         c = ws.cell(row=row_offset + ro, column=co, value=val)
@@ -1372,16 +1372,16 @@ def _write_one_slip_row(ws, row_offset, name, days,
     # ── タイトル行 (row 0) ──
     mmerge(0, 1, 2);  cell(0, 1, "パート給与明細書", bold=True, align=ca, size=12)
     mmerge(0, 3, 4);  cell(0, 3, f"令和{reiwa_year}年{month}月分", align=ca)
-    mmerge(0, 5, 7);  cell(0, 5, f"氏名：{name}", align=la)
-    mmerge(0, 8, 9);  cell(0, 8,
+    mmerge(0, 5, 6);  cell(0, 5, f"氏名：{name}", align=la)
+    mmerge(0, 7, 8);  cell(0, 7,
         f"対象期間：{df_start.month}/{df_start.day}〜{df_end.month}/{df_end.day}",
         align=ca)
-    mmerge(0, 10, NCOLS); cell(0, 10,
+    mmerge(0, 9, NCOLS); cell(0, 9,
         f"支給日：{df_end.year}年{df_end.month}月25日",
         align=ra)
 
     # ── ヘッダー行 (row 1) ──
-    headers = ["出勤日数", "労働時間", "残業時間", "時給",
+    headers = ["出勤日数", "労働時間", "時給",
                "基本給", "通勤手当", "総支給額",
                "所得税", "控除合計", "差引支給額"]
     for i, h in enumerate(headers):
@@ -1393,7 +1393,6 @@ def _write_one_slip_row(ws, row_offset, name, days,
     values = [
         (f"{days}日",                   ca),
         (f"{total_h}:{total_m:02d}",    ca),
-        (f"{over_h}:{over_m:02d}",      ca),
         (f"{hourly:,}",                 ra),
         (f"{base_pay + overtime_pay:,}", ra),
         (f"{transport:,}",              ra),
@@ -1428,8 +1427,8 @@ def _make_all_payslip_excel(payslip_data, date_from, date_to):
     ws.page_setup.fitToHeight = 0
     ws.print_options.horizontalCentered = True
 
-    # 列幅（10列）
-    col_widths = [9, 10, 10, 9, 13, 11, 13, 10, 11, 15]
+    # 列幅（9列）
+    col_widths = [9, 10, 9, 13, 11, 13, 10, 11, 15]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
