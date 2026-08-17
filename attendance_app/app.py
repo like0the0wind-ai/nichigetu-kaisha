@@ -1254,7 +1254,7 @@ def _make_payslip_pdf(slip, date_from, date_to):
     # 勤怠情報
     c.setFont(FONT, 10)
     c.drawString(left, y,
-        f"出勤日数：{slip['days']}日　　総労働時間：{slip['total_work']}　　残業時間：{slip['total_over']}")
+        f"出勤日数：{slip['days']}日　　総労働時間：{slip['total_work']}")
     y -= 12*mm
 
     # 支給明細
@@ -1271,9 +1271,7 @@ def _make_payslip_pdf(slip, date_from, date_to):
     c.setFont(FONT, 10)
     c.drawString(left, y, "◆ 支給")
     y -= 8*mm
-    row("基本給", yen(slip["base_pay"]))
-    if slip["overtime_pay"] > 0:
-        row("残業手当", yen(slip["overtime_pay"]))
+    row("基本給", yen(slip["base_pay"] + slip["overtime_pay"]))
     if slip["transport"] > 0:
         row("通勤手当", yen(slip["transport"]))
     if slip["other_all"] > 0:
