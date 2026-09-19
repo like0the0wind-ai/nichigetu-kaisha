@@ -1260,7 +1260,7 @@ def _make_payslip_pdf(slip, date_from, date_to):
     # 勤怠情報
     c.setFont(FONT, 10)
     c.drawString(left, y,
-        f"出勤日数：{slip['days']}日　　総労働時間：{slip['total_work']}")
+        f"時給：{yen(slip['hourly'])}　　出勤日数：{slip['days']}日　　総労働時間：{slip['total_work']}")
     y -= 12*mm
 
     # 支給明細
