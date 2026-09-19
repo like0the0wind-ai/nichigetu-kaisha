@@ -147,15 +147,27 @@
       {% endif %}
       <a id="link_all" class="btn-excel" style="background:#7a4a9a"
          href="/admin/payslip/all_excel?from={{ date_from }}&to={{ date_to }}">
-        🖨 全員A4印刷用Excel
+        🖨 全員給与明細（<span id="label_period">{{ period_label }}</span>）
       </a>
     </form>
     <script>
+    function _periodLabel(f, t) {
+      if (!f) return '';
+      var fd = new Date(f + 'T00:00:00'), td = t ? new Date(t + 'T00:00:00') : fd;
+      var y = fd.getFullYear(), m = fd.getMonth()+1;
+      var ey = td.getFullYear(), em = td.getMonth()+1;
+      if (y === ey && m === em) return y + '年' + m + '月分';
+      return y + '年' + m + '月〜' + ey + '年' + em + '月分';
+    }
     function updateLinks() {
       var f = document.getElementById('date_from').value;
       var t = document.getElementById('date_to').value;
       var all = document.getElementById('link_all');
-      if (all) all.href = '/admin/payslip/all_excel?from=' + f + '&to=' + t;
+      if (all) {
+        all.href = '/admin/payslip/all_excel?from=' + f + '&to=' + t;
+        var lbl = document.getElementById('label_period');
+        if (lbl) lbl.textContent = _periodLabel(f, t);
+      }
       var name = document.querySelector('select[name="name"]').value;
       var dl = document.getElementById('link_dl');
       if (dl) {
