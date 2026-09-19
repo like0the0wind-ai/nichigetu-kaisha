@@ -1130,6 +1130,11 @@ def admin_payslip():
     ye_adj  = dict(ye_rows[0]) if ye_rows else {}
     ye_result = _calc_year_end(target, calc_year, ye_adj) if (target and ye_rows) else None
 
+    hourly_rate = 0
+    if target:
+        emp_row = query("SELECT hourly_rate FROM employees WHERE name=?", (target,))
+        hourly_rate = int(emp_row[0]["hourly_rate"] or 0) if emp_row else 0
+
     return render_template("payslip.html",
         staff_rows=staff_rows, target=target,
         date_from=date_from, date_to=date_to,
@@ -1138,6 +1143,7 @@ def admin_payslip():
         total_work=fmt_time(sum(r["work_min"] for r in results)),
         total_over=fmt_time(sum(r["over_min"] for r in results)),
         days=len(results),
+        hourly_rate=hourly_rate,
         calc_year=calc_year,
         ye_adj=ye_adj,
         ye_result=ye_result)
